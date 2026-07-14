@@ -14,6 +14,8 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.UnknownField;
 import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -45,12 +47,8 @@ public final class IssStateProtoCodec implements Codec<IssState> {
     }
 
     @Override
-    public @NonNull IssState parse(
-            @NonNull final ReadableSequentialData input,
-            boolean strictMode,
-            boolean parseUnknownFields,
-            int maxDepth,
-            int maxSize)
+    public @NonNull IssState realParse(
+            @NonNull final SlimBuffer input, boolean strictMode, boolean parseUnknownFields, int maxDepth, int maxSize)
             throws ParseException {
         return parse(input, strictMode, parseUnknownFields, maxDepth);
     }
@@ -188,6 +186,20 @@ public final class IssStateProtoCodec implements Codec<IssState> {
         }
     }
 
+    public void realWrite(@NonNull IssState data, @NonNull SlimWriter out) throws IOException {
+        // [1] - issState
+        writeLong(out, IssStateSchema.ISS_STATE, data.issState(), true);
+
+        // Check if not-empty to avoid creating a lambda if there's nothing to write.
+        if (!data.getUnknownFields().isEmpty()) {
+            data.getUnknownFields().forEach(uf -> {
+                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
+                out.writeVarInt(tag, false);
+                uf.bytes().writeTo(out);
+            });
+        }
+    }
+
     /**
      * Reads from this data input the length of the data within the input. The implementation may
      * read all the data, or just some special serialized data, as needed to find out the length of
@@ -226,8 +238,7 @@ public final class IssStateProtoCodec implements Codec<IssState> {
      * @return true if the bytes represent the item, false otherwise.
      * @throws ParseException If parsing fails
      */
-    public boolean fastEquals(@NonNull IssState item, @NonNull final ReadableSequentialData input)
-            throws ParseException {
+    public boolean fastEquals(@NonNull IssState item, @NonNull final SlimBuffer input) throws ParseException {
         return item.equals(parse(input));
     }
 

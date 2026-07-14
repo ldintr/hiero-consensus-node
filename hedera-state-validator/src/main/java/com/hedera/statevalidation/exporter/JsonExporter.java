@@ -172,7 +172,7 @@ public class JsonExporter {
                     }
                     stateKey = StateKey.PROTOBUF.parse(keyBytes);
                     stateValue = StateValue.PROTOBUF.parse(
-                            valueBytes.toReadableSequentialData(),
+                            valueBytes.toSlimBuffer(),
                             false,
                             false,
                             Codec.DEFAULT_MAX_DEPTH,

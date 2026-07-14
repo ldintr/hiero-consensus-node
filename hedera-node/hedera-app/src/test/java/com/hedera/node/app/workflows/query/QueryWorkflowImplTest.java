@@ -55,7 +55,6 @@ import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.fees.ExchangeRateManager;
 import com.hedera.node.app.fees.FeeManager;
 import com.hedera.node.app.fixtures.AppTestBase;
-import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hedera.node.app.service.consensus.impl.handlers.ConsensusGetTopicInfoHandler;
 import com.hedera.node.app.service.file.impl.handlers.FileGetInfoHandler;
 import com.hedera.node.app.service.networkadmin.impl.handlers.NetworkGetExecutionTimeHandler;
@@ -78,8 +77,8 @@ import com.hedera.node.config.testfixtures.HederaTestConfigBuilder;
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.UnknownFieldException;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.common.utility.AutoCloseableWrapper;
 import com.swirlds.config.api.Configuration;
@@ -190,7 +189,7 @@ class QueryWorkflowImplTest extends AppTestBase {
                 .fileGetInfo(FileGetInfoQuery.newBuilder().header(queryHeader))
                 .build();
         requestBuffer = Query.PROTOBUF.toBytes(query);
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
 
         configuration = new VersionedConfigImpl(HederaTestConfigBuilder.createConfig(), DEFAULT_CONFIG_VERSION);
         when(configProvider.getConfiguration()).thenReturn(configuration);
@@ -609,7 +608,7 @@ class QueryWorkflowImplTest extends AppTestBase {
         final var query = Query.newBuilder()
                 .fileGetInfo(FileGetInfoQuery.newBuilder().header(queryHeader))
                 .build();
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
         when(handler.extractHeader(query)).thenReturn(queryHeader);
         when(dispatcher.getHandler(query)).thenReturn(handler);
         given(handler.requiresNodePayment(any())).willReturn(true);
@@ -646,7 +645,7 @@ class QueryWorkflowImplTest extends AppTestBase {
         final var query = Query.newBuilder()
                 .fileGetInfo(FileGetInfoQuery.newBuilder().header(queryHeader))
                 .build();
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
         when(dispatcher.getHandler(query)).thenReturn(handler);
         when(handler.extractHeader(query)).thenReturn(queryHeader);
         when(handler.needsAnswerOnlyCost(COST_ANSWER)).thenReturn(true);
@@ -668,7 +667,7 @@ class QueryWorkflowImplTest extends AppTestBase {
     @Test
     void testParsingFails() throws ParseException {
         // given
-        when(queryParser.parseStrict((ReadableSequentialData) notNull()))
+        when(queryParser.parseStrict((SlimBuffer) notNull()))
                 .thenThrow(new ParseException(new RuntimeException("Expected failure")));
         final var responseBuffer = newEmptyBuffer();
 
@@ -683,7 +682,7 @@ class QueryWorkflowImplTest extends AppTestBase {
     void testUnrecognizableQueryTypeFails() throws ParseException {
         // given
         final var query = Query.newBuilder().build();
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
         final var responseBuffer = newEmptyBuffer();
 
         // then
@@ -696,7 +695,7 @@ class QueryWorkflowImplTest extends AppTestBase {
     @Test
     void testUnknownQueryParamFails() throws ParseException {
         // given
-        when(queryParser.parseStrict((ReadableSequentialData) notNull()))
+        when(queryParser.parseStrict((SlimBuffer) notNull()))
                 .thenThrow(new ParseException(new UnknownFieldException("bogus field")));
         final var responseBuffer = newEmptyBuffer();
 
@@ -728,15 +727,14 @@ class QueryWorkflowImplTest extends AppTestBase {
     @Test
     void testUnsupportedResponseTypeFails() throws ParseException {
         // given
-        final var localRequestBuffer = newEmptyBuffer();
         final var queryHeader =
                 QueryHeader.newBuilder().responseType(ANSWER_STATE_PROOF).build();
         final var query = Query.newBuilder()
                 .fileGetInfo(FileGetInfoQuery.newBuilder().header(queryHeader).build())
                 .build();
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
 
-        final var requestBytes = CommonPbjConverters.asBytes(localRequestBuffer);
+        final var requestBytes = new byte[0];
         when(handler.extractHeader(query)).thenReturn(queryHeader);
         when(dispatcher.getHandler(query)).thenReturn(handler);
         final var responseBuffer = newEmptyBuffer();
@@ -968,7 +966,6 @@ class QueryWorkflowImplTest extends AppTestBase {
     void testUnpaidQueryWithRestrictedFunctionalityFails(@Mock NetworkGetExecutionTimeHandler networkHandler)
             throws ParseException {
         // given
-        final var localRequestBuffer = newEmptyBuffer();
         final var localQueryHeader =
                 QueryHeader.newBuilder().responseType(COST_ANSWER).build();
         final var localQuery = Query.newBuilder()
@@ -976,8 +973,8 @@ class QueryWorkflowImplTest extends AppTestBase {
                         NetworkGetExecutionTimeQuery.newBuilder().header(localQueryHeader))
                 .build();
 
-        final var requestBytes = CommonPbjConverters.asBytes(localRequestBuffer);
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(localQuery);
+        final var requestBytes = new byte[0];
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(localQuery);
         when(networkHandler.extractHeader(localQuery)).thenReturn(localQueryHeader);
         when(dispatcher.getHandler(localQuery)).thenReturn(networkHandler);
 
@@ -1063,15 +1060,12 @@ class QueryWorkflowImplTest extends AppTestBase {
         verify(opWorkflowMetrics).updateDuration(eq(FILE_GET_INFO), anyInt());
     }
 
-    private static Response parseResponse(BufferedData responseBuffer) throws ParseException {
-        final byte[] bytes = new byte[Math.toIntExact(responseBuffer.position())];
-        responseBuffer.resetPosition();
-        responseBuffer.readBytes(bytes);
-        return Response.PROTOBUF.parseStrict(BufferedData.wrap(bytes));
+    private static Response parseResponse(SlimWriter responseBuffer) throws ParseException {
+        return Response.PROTOBUF.parseStrict(new SlimBuffer(responseBuffer.toByteArray()));
     }
 
-    private static BufferedData newEmptyBuffer() {
-        return BufferedData.allocate(BUFFER_SIZE);
+    private static SlimWriter newEmptyBuffer() {
+        return new SlimWriter(BUFFER_SIZE);
     }
 
     private void mockQueryContext() {
@@ -1156,7 +1150,7 @@ class QueryWorkflowImplTest extends AppTestBase {
         serializedPayment = Transaction.PROTOBUF.toBytes(payment);
 
         requestBuffer = Query.PROTOBUF.toBytes(query);
-        when(queryParser.parseStrict((ReadableSequentialData) notNull())).thenReturn(query);
+        when(queryParser.parseStrict((SlimBuffer) notNull())).thenReturn(query);
 
         final var signatureMap = SignatureMap.newBuilder().build();
         transactionInfo = new TransactionInfo(

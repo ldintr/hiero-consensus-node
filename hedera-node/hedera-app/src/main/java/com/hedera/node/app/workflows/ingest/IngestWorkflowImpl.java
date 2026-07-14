@@ -13,7 +13,7 @@ import com.hedera.node.app.spi.workflows.PreCheckException;
 import com.hedera.node.app.throttle.ThrottleUsage;
 import com.hedera.node.config.ConfigProvider;
 import com.hedera.node.config.data.QuiescenceConfig;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.common.utility.AutoCloseableWrapper;
 import com.swirlds.state.State;
@@ -66,7 +66,7 @@ public final class IngestWorkflowImpl implements IngestWorkflow {
     }
 
     @Override
-    public void submitTransaction(@NonNull final Bytes requestBuffer, @NonNull final BufferedData responseBuffer) {
+    public void submitTransaction(@NonNull final Bytes requestBuffer, @NonNull final SlimWriter responseBuffer) {
         requireNonNull(requestBuffer);
         requireNonNull(responseBuffer);
 

@@ -7,6 +7,7 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.base.crypto.Hash;
@@ -101,6 +102,16 @@ public record VirtualHashRecord(long path, Hash hash) {
      * @param out the sequential data to write to
      */
     public void writeTo(final WritableSequentialData out) {
+        ProtoWriterTools.writeTag(out, FIELD_HASHRECORD_PATH);
+        out.writeLong(path);
+        if (hash != null) {
+            final Bytes hashBytes = hash.getBytes();
+            ProtoWriterTools.writeDelimited(
+                    out, FIELD_HASHRECORD_HASH, Math.toIntExact(hashBytes.length()), hashBytes::writeTo);
+        }
+    }
+
+    public void writeTo(final SlimWriter out) {
         ProtoWriterTools.writeTag(out, FIELD_HASHRECORD_PATH);
         out.writeLong(path);
         if (hash != null) {

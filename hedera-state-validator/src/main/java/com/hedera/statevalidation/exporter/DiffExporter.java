@@ -185,7 +185,7 @@ public class DiffExporter {
             throws Exception { // Adjust for ParseException, IOException, etc.
         final StateKey stateKey = StateKey.PROTOBUF.parse(keyBytes);
         final StateValue stateValue = StateValue.PROTOBUF.parse(
-                valueBytes.toReadableSequentialData(),
+                valueBytes.toSlimBuffer(),
                 false,
                 false,
                 Codec.DEFAULT_MAX_DEPTH,

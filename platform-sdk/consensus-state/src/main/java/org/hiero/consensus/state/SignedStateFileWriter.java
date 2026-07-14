@@ -13,7 +13,7 @@ import static org.hiero.consensus.state.persistence.SignedStateFileUtils.SIGNATU
 
 import com.hedera.hapi.node.state.roster.Roster;
 import com.hedera.hapi.platform.state.ConsensusSnapshot;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.logging.legacy.payload.StateSavedToDiskPayload;
 import com.swirlds.state.StateLifecycleManager;
@@ -117,7 +117,7 @@ public final class SignedStateFileWriter {
             throws IOException {
         final Path sigSetFile = directory.resolve(SIGNATURE_SET_FILE_NAME);
         try (final FileOutputStream fos = new FileOutputStream(sigSetFile.toFile());
-                final WritableStreamingData out = new WritableStreamingData(fos)) {
+                final SlimWriter out = new SlimWriter(fos)) {
             signedState.getSigSet().serialize(out);
         }
     }

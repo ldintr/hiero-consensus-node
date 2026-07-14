@@ -11,7 +11,7 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -30,15 +30,13 @@ public class ProtobufUtils {
 
     @NonNull
     public static Bytes extractPaymentBytes(@NonNull final Bytes serializedQuery) throws IOException, ParseException {
-        final var queryBody = extractQuery(serializedQuery.toReadableSequentialData());
-        final var queryHeader =
-                extractFieldBytes(queryBody.toReadableSequentialData(), TransactionGetReceiptQuerySchema.HEADER);
-        return extractFieldBytes(queryHeader.toReadableSequentialData(), QueryHeaderSchema.PAYMENT);
+        final var queryBody = extractQuery(serializedQuery.toSlimBuffer());
+        final var queryHeader = extractFieldBytes(queryBody.toSlimBuffer(), TransactionGetReceiptQuerySchema.HEADER);
+        return extractFieldBytes(queryHeader.toSlimBuffer(), QueryHeaderSchema.PAYMENT);
     }
 
     @NonNull
-    private static Bytes extractFieldBytes(
-            @NonNull final ReadableSequentialData input, @NonNull final FieldDefinition field)
+    private static Bytes extractFieldBytes(@NonNull final SlimBuffer input, @NonNull final FieldDefinition field)
             throws IOException, ParseException {
         if (field.repeated()) {
             throw new IllegalArgumentException("Cannot extract field bytes for a repeated field: " + field);
@@ -46,7 +44,7 @@ public class ProtobufUtils {
         if (ProtoWriterTools.wireType(field) != ProtoConstants.WIRE_TYPE_DELIMITED) {
             throw new IllegalArgumentException("Cannot extract field bytes for a non-length-delimited field: " + field);
         }
-        while (input.hasRemaining()) {
+        while (input.hasMore()) {
             final int tag;
             // hasRemaining() doesn't work very well for streaming data, it returns false only when
             // the end of input is already reached using a read operation. Let's catch an underflow
@@ -74,8 +72,8 @@ public class ProtobufUtils {
     }
 
     @NonNull
-    private static Bytes extractQuery(@NonNull final ReadableSequentialData input) throws IOException, ParseException {
-        while (input.hasRemaining()) {
+    private static Bytes extractQuery(@NonNull final SlimBuffer input) throws IOException, ParseException {
+        while (input.hasMore()) {
             final int tag;
             // hasRemaining() doesn't work very well for streaming data, it returns false only when
             // the end of input is already reached using a read operation. Let's catch an underflow

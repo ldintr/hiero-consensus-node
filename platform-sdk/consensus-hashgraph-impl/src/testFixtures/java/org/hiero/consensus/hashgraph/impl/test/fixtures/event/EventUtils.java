@@ -4,8 +4,8 @@ package org.hiero.consensus.hashgraph.impl.test.fixtures.event;
 import static java.lang.Integer.max;
 
 import com.hedera.hapi.platform.event.GossipEvent;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -36,13 +36,13 @@ public final class EventUtils {
      * @return the serialized event
      */
     public static byte[] serializePlatformEvent(@NonNull final PlatformEvent event) {
-        final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        var writer = new SlimWriter();
         try {
-            new SerializableDataOutputStream(stream).writePbjRecord(event.getGossipEvent(), GossipEvent.PROTOBUF);
+            new SerializableDataOutputStream(writer).writePbjRecord(event.getGossipEvent(), GossipEvent.PROTOBUF);
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
-        return stream.toByteArray();
+        return writer.toByteArray();
     }
 
     /**

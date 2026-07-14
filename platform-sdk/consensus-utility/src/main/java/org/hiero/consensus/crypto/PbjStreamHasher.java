@@ -3,9 +3,8 @@ package org.hiero.consensus.crypto;
 
 import com.hedera.hapi.platform.event.EventCore;
 import com.hedera.hapi.platform.event.EventDescriptor;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -27,12 +26,11 @@ public class PbjStreamHasher implements EventHasher {
     /** The hashing stream for the event. */
     private final MessageDigest eventDigest = DigestType.SHA_384.buildDigest();
 
-    final WritableSequentialData eventStream = new WritableStreamingData(new HashingOutputStream(eventDigest));
+    final SlimWriter eventStream = new SlimWriter(new HashingOutputStream(eventDigest));
     /** The hashing stream for the transactions. */
     private final MessageDigest transactionDigest = DigestType.SHA_384.buildDigest();
 
-    final WritableSequentialData transactionStream =
-            new WritableStreamingData(new HashingOutputStream(transactionDigest));
+    final SlimWriter transactionStream = new SlimWriter(new HashingOutputStream(transactionDigest));
 
     @Override
     @NonNull
@@ -76,11 +74,14 @@ public class PbjStreamHasher implements EventHasher {
                 transactionStream.writeBytes(Objects.requireNonNull(transaction.getApplicationTransaction()));
                 processTransactionHash(transaction);
             }
+            eventStream.flush();
             success = true;
         } catch (final IOException e) {
             throw new RuntimeException("An exception occurred while trying to hash an event!", e);
         } finally {
             if (!success) {
+                eventStream.reset();
+                transactionStream.reset();
                 transactionDigest.reset();
                 eventDigest.reset();
             }
@@ -90,6 +91,7 @@ public class PbjStreamHasher implements EventHasher {
     }
 
     private void processTransactionHash(final TransactionWrapper transaction) {
+        transactionStream.flush();
         final byte[] hash = transactionDigest.digest();
         transaction.setHash(Bytes.wrap(hash));
         eventStream.writeBytes(hash);

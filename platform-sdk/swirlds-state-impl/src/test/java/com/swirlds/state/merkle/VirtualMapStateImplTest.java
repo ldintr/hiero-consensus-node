@@ -1019,7 +1019,7 @@ public class VirtualMapStateImplTest extends MerkleTestBase {
             // Get Merkle proof and verify state item content
             final MerkleProof proof = virtualMapState.getMerkleProof(path);
             final StateItem parsedStateItem =
-                    StateItem.CODEC.parse(proof.stateItem().toReadableSequentialData());
+                    StateItem.CODEC.parse(proof.stateItem().toSlimBuffer());
             assertThat(parsedStateItem.key()).isEqualTo(leaf.keyBytes());
             assertThat(parsedStateItem.value()).isEqualTo(leaf.valueBytes());
 
@@ -1075,7 +1075,7 @@ public class VirtualMapStateImplTest extends MerkleTestBase {
             // Get Merkle proof and verify state item content
             final MerkleProof proof = virtualMapState.getMerkleProof(path);
             final StateItem parsedStateItem =
-                    StateItem.CODEC.parse(proof.stateItem().toReadableSequentialData());
+                    StateItem.CODEC.parse(proof.stateItem().toSlimBuffer());
             assertThat(parsedStateItem.key()).isEqualTo(leaf.keyBytes());
             assertThat(parsedStateItem.value()).isEqualTo(leaf.valueBytes());
 

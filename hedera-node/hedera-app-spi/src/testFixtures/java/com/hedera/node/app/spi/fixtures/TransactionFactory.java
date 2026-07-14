@@ -10,10 +10,9 @@ import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.pbj.runtime.Codec;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 
@@ -63,9 +62,9 @@ public interface TransactionFactory {
 
     default <R> byte[] asByteArray(@NonNull final Codec<R> codec, @NonNull final R r) {
         try {
-            final var byteStream = new ByteArrayOutputStream();
-            codec.write(r, new WritableStreamingData(byteStream));
-            return byteStream.toByteArray();
+            var writer = new SlimWriter();
+            codec.write(r, writer);
+            return writer.toByteArray();
         } catch (IOException ex) {
             throw new AssertionError(ex);
         }

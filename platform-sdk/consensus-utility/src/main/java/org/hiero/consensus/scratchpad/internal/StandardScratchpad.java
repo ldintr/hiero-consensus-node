@@ -4,6 +4,7 @@ package org.hiero.consensus.scratchpad.internal;
 import static com.swirlds.logging.legacy.LogMarker.STARTUP;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.base.formatting.TextTable;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -245,7 +246,7 @@ public class StandardScratchpad<K extends Enum<K> & ScratchpadType> implements S
     private Path flushToTemporaryFile() throws IOException {
         final Path temporaryFile = fileSystemManager.resolveNewTemp("scratchpad");
         try (final SerializableDataOutputStream out = new SerializableDataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(temporaryFile.toFile(), false)))) {
+                new SlimWriter(new FileOutputStream(temporaryFile.toFile(), false)))) {
 
             out.writeInt(fileVersion);
 

@@ -13,8 +13,6 @@ import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
@@ -25,7 +23,6 @@ import java.util.HexFormat;
 import java.util.zip.GZIPInputStream;
 import org.hiero.base.crypto.DigestType;
 import org.hiero.base.crypto.Hash;
-import org.hiero.base.io.streams.SerializableDataOutputStream;
 
 /**
  * A Record File Version 6 Reader that can be used in tests to read record files and validate then and return the contents
@@ -43,32 +40,25 @@ public class BlockRecordReaderV6 {
     private static final byte[] HASH_HEADER;
 
     static {
-        try {
-            // compute Hash object header, the hash header is not the usual SelfSerializable Hash object.
-            // @see org.hiero.base.crypto.engine.RunningHashProvider.updateForHash
-            // @see org.hiero.base.crypto.HashBuilder.update(long)
-            // @see org.hiero.base.crypto.HashBuilder.update(int)
-            ByteBuffer buf = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
-            buf.order(ByteOrder.LITTLE_ENDIAN);
-            buf.putLong(Hash.CLASS_ID);
-            buf.putInt(new Hash().getVersion());
-            HASH_HEADER = buf.array();
-            if (!Arrays.equals(HASH_HEADER, HexFormat.of().parseHex("1e7451a283da22f401000000"))) {
-                throw new IllegalStateException("Hash object header is not the expected 1e7451a283da22f401000000");
-            }
-            // compute RecordStreamObject header
-            ByteArrayOutputStream bout = new ByteArrayOutputStream();
-            SerializableDataOutputStream sout = new SerializableDataOutputStream(bout);
-            bout.reset();
-            sout.writeLong(RECORD_STREAM_OBJECT_CLASS_ID);
-            sout.writeInt(RECORD_STREAM_OBJECT_CLASS_VERSION);
-            RECORD_STREAM_OBJECT_HEADER = bout.toByteArray();
-            if (!Arrays.equals(RECORD_STREAM_OBJECT_HEADER, HexFormat.of().parseHex("e370929ba5429d8b00000001"))) {
-                throw new IllegalStateException(
-                        "RecordStreamObject header is not the expected e370929ba5429d8b00000001");
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        // compute Hash object header, the hash header is not the usual SelfSerializable Hash object.
+        // @see org.hiero.base.crypto.engine.RunningHashProvider.updateForHash
+        // @see org.hiero.base.crypto.HashBuilder.update(long)
+        // @see org.hiero.base.crypto.HashBuilder.update(int)
+        ByteBuffer buf = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        buf.putLong(Hash.CLASS_ID);
+        buf.putInt(new Hash().getVersion());
+        HASH_HEADER = buf.array();
+        if (!Arrays.equals(HASH_HEADER, HexFormat.of().parseHex("1e7451a283da22f401000000"))) {
+            throw new IllegalStateException("Hash object header is not the expected 1e7451a283da22f401000000");
+        }
+        // compute RecordStreamObject header
+        buf = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
+        buf.putLong(RECORD_STREAM_OBJECT_CLASS_ID);
+        buf.putInt(RECORD_STREAM_OBJECT_CLASS_VERSION);
+        RECORD_STREAM_OBJECT_HEADER = buf.array();
+        if (!Arrays.equals(RECORD_STREAM_OBJECT_HEADER, HexFormat.of().parseHex("e370929ba5429d8b00000001"))) {
+            throw new IllegalStateException("RecordStreamObject header is not the expected e370929ba5429d8b00000001");
         }
     }
 

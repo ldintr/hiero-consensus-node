@@ -3,9 +3,10 @@ package org.hiero.consensus.state.signed;
 
 import com.hedera.hapi.platform.state.NodeIdSignaturePair;
 import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
@@ -147,7 +148,7 @@ public class SigSet implements FastCopyable, Iterable<NodeId> {
      * @param out the stream to write to
      * @throws IOException if an I/O error occurs
      */
-    public void serialize(@NonNull final WritableStreamingData out) throws IOException {
+    public void serialize(@NonNull final SlimWriter out) throws IOException {
         final List<NodeId> sortedIds = getSigningNodes().stream().sorted().toList();
         final List<NodeIdSignaturePair> signaturePairs = new ArrayList<>(sortedIds.size());
         for (final NodeId nodeId : sortedIds) {
@@ -170,6 +171,32 @@ public class SigSet implements FastCopyable, Iterable<NodeId> {
      * @throws ParseException if a parse error occurs
      */
     public void deserialize(@NonNull final ReadableStreamingData in) throws IOException, ParseException {
+        signatures.clear();
+
+        final long length = in.readVarInt(false);
+        final long limitBefore = in.limit();
+        in.limit(in.position() + length);
+
+        final com.hedera.hapi.platform.state.SigSet sigSet =
+                com.hedera.hapi.platform.state.SigSet.PROTOBUF.parseStrict(in);
+        in.limit(limitBefore);
+
+        final List<NodeIdSignaturePair> nodeIdSignaturePairs = sigSet.nodeIdSignaturePairs();
+        if (nodeIdSignaturePairs.size() > MAX_SIGNATURE_COUNT) {
+            throw new IOException(
+                    "Signature count of " + signatures.size() + " exceeds maximum of " + MAX_SIGNATURE_COUNT);
+        }
+
+        for (NodeIdSignaturePair nodeIdSignaturePair : nodeIdSignaturePairs) {
+            signatures.put(
+                    NodeId.of(nodeIdSignaturePair.nodeId()),
+                    new Signature(
+                            SignatureType.from(nodeIdSignaturePair.signatureType(), SignatureType.RSA),
+                            nodeIdSignaturePair.signatureBytes()));
+        }
+    }
+
+    public void deserialize(@NonNull final SlimBuffer in) throws IOException, ParseException {
         signatures.clear();
 
         final long length = in.readVarInt(false);

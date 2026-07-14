@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -569,7 +569,7 @@ public class SerializableStreamTests {
     void getLongArraySerializedLengthTest(int num) {
         assertEquals(
                 LENGTH_IN_BYTES + num * Long.BYTES,
-                AugmentedDataOutputStream.getArraySerializedLength(new long[num]),
+                SerializableDataOutputStream.getArraySerializedLength(new long[num]),
                 "length mismatch");
 
         long[] numbers = null;
@@ -588,7 +588,7 @@ public class SerializableStreamTests {
     void getIntArraySerializedLengthTest(int num) {
         assertEquals(
                 LENGTH_IN_BYTES + num * Integer.BYTES,
-                AugmentedDataOutputStream.getArraySerializedLength(new int[num]));
+                SerializableDataOutputStream.getArraySerializedLength(new int[num]));
     }
 
     @Test
@@ -597,11 +597,11 @@ public class SerializableStreamTests {
     void getNullByteArraySerializedLengthTest() {
 
         // without checksum
-        assertEquals(LENGTH_IN_BYTES, AugmentedDataOutputStream.getArraySerializedLength(null, false));
+        assertEquals(LENGTH_IN_BYTES, SerializableDataOutputStream.getArraySerializedLength(null, false));
 
         // with checksum
         assertEquals(
-                LENGTH_IN_BYTES + CHECKSUM_IN_BYTES, AugmentedDataOutputStream.getArraySerializedLength(null, true));
+                LENGTH_IN_BYTES + CHECKSUM_IN_BYTES, SerializableDataOutputStream.getArraySerializedLength(null, true));
     }
 
     @Tag(TestComponentTags.IO)
@@ -610,17 +610,18 @@ public class SerializableStreamTests {
     @ValueSource(ints = {0, 1, 10, 1024})
     void getByteArraySerializedLengthTest(int num) {
         assertEquals(
-                LENGTH_IN_BYTES + num * Byte.BYTES, AugmentedDataOutputStream.getArraySerializedLength(new byte[num]));
+                LENGTH_IN_BYTES + num * Byte.BYTES,
+                SerializableDataOutputStream.getArraySerializedLength(new byte[num]));
 
         // without checksum
         assertEquals(
                 LENGTH_IN_BYTES + num * Byte.BYTES,
-                AugmentedDataOutputStream.getArraySerializedLength(new byte[num], false));
+                SerializableDataOutputStream.getArraySerializedLength(new byte[num], false));
 
         // with checksum
         assertEquals(
                 LENGTH_IN_BYTES + CHECKSUM_IN_BYTES + num * Byte.BYTES,
-                AugmentedDataOutputStream.getArraySerializedLength(new byte[num], true));
+                SerializableDataOutputStream.getArraySerializedLength(new byte[num], true));
     }
 
     @Test
@@ -629,7 +630,7 @@ public class SerializableStreamTests {
     void serializedLengthNullArray() throws IOException {
         final int length = SerializableDataOutputStream.getSerializedLength(null, true, false);
 
-        try (final ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+        try (final SlimWriter bos = new SlimWriter()) {
             try (final SerializableDataOutputStream dos = new SerializableDataOutputStream(bos)) {
                 dos.writeSerializableArray(null, true, false);
                 checkExpectedSize(dos.size(), length);
@@ -650,11 +651,12 @@ public class SerializableStreamTests {
 
         final SerializableLong data = new SerializableLong(random.nextLong());
 
-        final ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-        final SerializableDataOutputStream out = new SerializableDataOutputStream(byteOut);
+        final SlimWriter slimOut = new SlimWriter();
+        final SerializableDataOutputStream out = new SerializableDataOutputStream(slimOut);
 
         out.writeSerializable(data, true);
-        final byte[] bytes = byteOut.toByteArray();
+        out.flush();
+        final byte[] bytes = slimOut.toByteArray();
 
         // Should work if the class id is not restricted
         final SerializableDataInputStream in1 = new SerializableDataInputStream(new ByteArrayInputStream(bytes));
@@ -686,11 +688,12 @@ public class SerializableStreamTests {
             data.add(new SerializableLong(random.nextLong()));
         }
 
-        final ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-        final SerializableDataOutputStream out = new SerializableDataOutputStream(byteOut);
+        final SlimWriter slimOut = new SlimWriter();
+        final SerializableDataOutputStream out = new SerializableDataOutputStream(slimOut);
 
         out.writeSerializableIterableWithSize(data.iterator(), data.size(), true, false);
-        final byte[] bytes = byteOut.toByteArray();
+        out.flush();
+        final byte[] bytes = slimOut.toByteArray();
 
         // Should work if the class id is not restricted
         final SerializableDataInputStream in1 = new SerializableDataInputStream(new ByteArrayInputStream(bytes));
@@ -723,11 +726,12 @@ public class SerializableStreamTests {
             data.add(new SerializableLong(random.nextLong()));
         }
 
-        final ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-        final SerializableDataOutputStream out = new SerializableDataOutputStream(byteOut);
+        final SlimWriter slimOut = new SlimWriter();
+        final SerializableDataOutputStream out = new SerializableDataOutputStream(slimOut);
 
         out.writeSerializableList(data, true, false);
-        final byte[] bytes = byteOut.toByteArray();
+        out.flush();
+        final byte[] bytes = slimOut.toByteArray();
 
         // Should work if the class id is not restricted
         final SerializableDataInputStream in1 = new SerializableDataInputStream(new ByteArrayInputStream(bytes));
@@ -754,11 +758,12 @@ public class SerializableStreamTests {
             data[i] = new SerializableLong(random.nextLong());
         }
 
-        final ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-        final SerializableDataOutputStream out = new SerializableDataOutputStream(byteOut);
+        final SlimWriter slimOut = new SlimWriter();
+        final SerializableDataOutputStream out = new SerializableDataOutputStream(slimOut);
 
         out.writeSerializableArray(data, true, false);
-        final byte[] bytes = byteOut.toByteArray();
+        out.flush();
+        final byte[] bytes = slimOut.toByteArray();
 
         // Should work if the class id is not restricted
         final SerializableDataInputStream in1 = new SerializableDataInputStream(new ByteArrayInputStream(bytes));

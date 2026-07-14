@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.hiero.consensus.pces.impl;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.FileOutputStream;
@@ -97,7 +98,7 @@ public final class PcesTestFilesGenerator {
             Files.createDirectories(parentDir);
         }
         final SerializableDataOutputStream out = new SerializableDataOutputStream(
-                new FileOutputStream(descriptor.getPath().toFile()));
+                new SlimWriter(new FileOutputStream(descriptor.getPath().toFile())));
         out.writeInt(PcesFileVersion.currentVersionNumber());
         out.writeNormalisedString("foo bar baz");
         out.close();

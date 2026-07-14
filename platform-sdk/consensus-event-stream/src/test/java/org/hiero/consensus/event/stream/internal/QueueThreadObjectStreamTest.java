@@ -8,8 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Iterator;
@@ -46,8 +45,7 @@ class QueueThreadObjectStreamTest {
 
     @BeforeEach
     void initLinkedObjectStreams() throws IOException {
-        consumer = new WriteToStreamConsumer(
-                new SerializableDataOutputStream(new BufferedOutputStream(new ByteArrayOutputStream())), initialHash);
+        consumer = new WriteToStreamConsumer(new SerializableDataOutputStream(new SlimWriter()), initialHash);
 
         queueThread = new QueueThreadObjectStreamConfiguration<ObjectForTestStream>(getStaticThreadManager())
                 .setForwardTo(consumer)

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package com.swirlds.virtualmap.test.fixtures;
 
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -20,7 +21,7 @@ public final class TestValue {
         this.s = s;
     }
 
-    public TestValue(final ReadableSequentialData in) {
+    public TestValue(final SlimBuffer in) {
         final int len = in.readInt();
         final byte[] value = new byte[len];
         in.readBytes(value);
@@ -33,6 +34,12 @@ public final class TestValue {
     }
 
     public void writeTo(final WritableSequentialData out) {
+        final byte[] value = s.getBytes(StandardCharsets.UTF_8);
+        out.writeInt(value.length);
+        out.writeBytes(value);
+    }
+
+    public void writeTo(final SlimWriter out) {
         final byte[] value = s.getBytes(StandardCharsets.UTF_8);
         out.writeInt(value.length);
         out.writeBytes(value);

@@ -12,6 +12,7 @@ import static org.hiero.consensus.event.stream.LinkedObjectStreamUtilities.gener
 import static org.hiero.consensus.event.stream.LinkedObjectStreamUtilities.getPeriod;
 import static org.hiero.consensus.model.stream.StreamAligned.NO_ALIGNMENT;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -198,8 +199,8 @@ public class TimestampStreamFileWriter<T extends StreamAligned & RunningHashable
             final StreamType streamType)
             throws IOException {
 
-        try (final SerializableDataOutputStream output =
-                new SerializableDataOutputStream(new BufferedOutputStream(new FileOutputStream(sigFilePath)))) {
+        try (final SerializableDataOutputStream output = new SerializableDataOutputStream(
+                new SlimWriter(new FileOutputStream(sigFilePath)))) {
 
             // write signature file header
             for (final byte num : streamType.getSigFileHeader()) {
@@ -242,8 +243,9 @@ public class TimestampStreamFileWriter<T extends StreamAligned & RunningHashable
             } else {
                 fileStream = new FileOutputStream(currentFile, false);
                 out = new SerializableDataOutputStream(
-                        new BufferedOutputStream(new HashingOutputStream(streamDigest, fileStream)));
-                metadataOut = new SerializableDataOutputStream(new HashingOutputStream(metadataStreamDigest));
+                        new SlimWriter(new HashingOutputStream(streamDigest, fileStream)));
+                metadataOut =
+                        new SerializableDataOutputStream(new SlimWriter(new HashingOutputStream(metadataStreamDigest)));
                 logger.info(OBJECT_STREAM_FILE.getMarker(), "Stream file created {}", currentFile::getName);
             }
         } catch (final FileNotFoundException e) {

@@ -7,6 +7,7 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.swirlds.virtualmap.internal.Path;
 import com.swirlds.virtualmap.internal.hash.VirtualHasher;
@@ -245,6 +246,31 @@ public class VirtualHashChunk {
             }
         }
         assert out.position() == pos + getSerializedSizeInBytes();
+    }
+
+    public void writeTo(SlimWriter out) {
+        ProtoWriterTools.writeTag(out, FIELD_HASHCHUNK_PATH);
+        out.writeLong(path);
+        // Hash data is never null
+        ProtoWriterTools.writeTag(out, FIELD_HASHCHUNK_HASHDATA);
+        final int singleHashLength = Cryptography.DEFAULT_DIGEST_TYPE.digestLength();
+        final int serializedDataLength = singleHashLength * getChunkSize(dataRank);
+        out.writeVarInt(serializedDataLength, false);
+        if (dataRank == height) {
+            // Full chunk, write in one call
+            assert serializedDataLength == hashData.length;
+            out.writeBytes(hashData);
+        } else {
+            // Some hashes at the lowest ranks are not set. To save disk space, write the
+            // hash data in a packed format. Only hashes at dataRank are written. This
+            // process must be in sync with parseFrom()
+            final int chunkSize = getChunkSize(height);
+            final int step = 1 << (height - dataRank);
+            for (int i = 0; i < chunkSize; i += step) {
+                final int offset = i * singleHashLength;
+                out.writeBytes(hashData, offset, singleHashLength);
+            }
+        }
     }
 
     public static long pathToChunkPath(final long path, final int chunkHeight) {

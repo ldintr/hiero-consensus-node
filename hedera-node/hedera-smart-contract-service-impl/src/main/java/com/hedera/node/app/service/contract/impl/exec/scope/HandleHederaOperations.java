@@ -466,7 +466,7 @@ public class HandleHederaOperations implements HederaOperations {
         return signedTx -> {
             try {
                 final var dispatchedBody = TransactionBody.PROTOBUF.parseStrict(
-                        signedTx.bodyBytes().toReadableSequentialData());
+                        signedTx.bodyBytes().toSlimBuffer());
                 if (!dispatchedBody.hasCryptoCreateAccount()) {
                     throw new IllegalArgumentException(
                             "Dispatched transaction body was not a crypto create" + dispatchedBody);

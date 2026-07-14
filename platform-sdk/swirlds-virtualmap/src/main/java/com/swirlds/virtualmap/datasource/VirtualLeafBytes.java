@@ -9,6 +9,8 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.base.utility.ToStringBuilder;
@@ -141,8 +143,7 @@ public class VirtualLeafBytes<V> {
                 assert this.valueCodec == null || this.valueCodec.equals(valueCodec);
                 this.valueCodec = valueCodec;
                 try {
-                    value = valueCodec.parse(
-                            valueBytes.toReadableSequentialData(), false, false, Codec.DEFAULT_MAX_DEPTH, maxSize);
+                    value = valueCodec.parse(valueBytes.toSlimBuffer(), false, false, Codec.DEFAULT_MAX_DEPTH, maxSize);
                 } catch (final ParseException e) {
                     throw new RuntimeException("Failed to deserialize a value from bytes", e);
                 }
@@ -232,6 +233,46 @@ public class VirtualLeafBytes<V> {
         return new VirtualLeafBytes<>(path, false, keyBytes, valueBytes);
     }
 
+    public static <V> VirtualLeafBytes<V> parseFrom(final SlimBuffer in) {
+        if (in == null) {
+            return null;
+        }
+
+        long path = 0;
+        Bytes keyBytes = null;
+        Bytes valueBytes = null;
+
+        while (in.hasMore()) {
+            final int field = in.readVarInt(false);
+            final int tag = field >> ProtoParserTools.TAG_FIELD_OFFSET;
+            if (tag == FIELD_LEAFRECORD_PATH.number()) {
+                if ((field & ProtoConstants.TAG_WIRE_TYPE_MASK) != ProtoConstants.WIRE_TYPE_FIXED_64_BIT.ordinal()) {
+                    throw new IllegalArgumentException("Wrong field type: " + field);
+                }
+                path = in.readLong();
+            } else if (tag == FIELD_LEAFRECORD_KEY.number()) {
+                if ((field & ProtoConstants.TAG_WIRE_TYPE_MASK) != ProtoConstants.WIRE_TYPE_DELIMITED.ordinal()) {
+                    throw new IllegalArgumentException("Wrong field type: " + field);
+                }
+                final int len = in.readVarInt(false);
+                keyBytes = in.readBytes(len);
+            } else if (tag == FIELD_LEAFRECORD_VALUE.number()) {
+                if ((field & ProtoConstants.TAG_WIRE_TYPE_MASK) != ProtoConstants.WIRE_TYPE_DELIMITED.ordinal()) {
+                    throw new IllegalArgumentException("Wrong field type: " + field);
+                }
+                final int len = in.readVarInt(false);
+                valueBytes = len == 0 ? Bytes.EMPTY : in.readBytes(len);
+            } else {
+                throw new IllegalArgumentException("Unknown field: " + field);
+            }
+        }
+
+        Objects.requireNonNull(keyBytes, "Missing key bytes in the input");
+
+        // Key hash code is not deserialized
+        return new VirtualLeafBytes<>(path, false, keyBytes, valueBytes);
+    }
+
     public int getSizeInBytes() {
         int size = 0;
         if (path != 0) {
@@ -273,6 +314,18 @@ public class VirtualLeafBytes<V> {
                 : "pos=" + pos + ", out.position()=" + out.position() + ", size=" + getSizeInBytes();
     }
 
+    public void writeTo(final SlimWriter out) {
+        final int pos = out.position();
+        if (path != 0) {
+            ProtoWriterTools.writeTag(out, FIELD_LEAFRECORD_PATH);
+            out.writeLong(path);
+        }
+        writeKey(out);
+        writeValue(out);
+        assert out.position() == pos + getSizeInBytes()
+                : "pos=" + pos + ", out.position()=" + out.position() + ", size=" + getSizeInBytes();
+    }
+
     /**
      * Writes this virtual leaf bytes object to the given sequential data for hashing.
      * <p>
@@ -289,6 +342,14 @@ public class VirtualLeafBytes<V> {
         writeValue(out);
     }
 
+    public void writeToForHashing(final SlimWriter out) {
+        // The 0x00 prefix byte is added to all leaf hashes in the Hiero Merkle tree,
+        // so that there is a clear guaranteed domain separation of hash space between leaves and internal nodes.
+        out.writeByte((byte) 0x00);
+        writeKey(out);
+        writeValue(out);
+    }
+
     private void writeKey(final WritableSequentialData out) {
         final Bytes kb = keyBytes();
         // ProtoWriterTools.writeDelimited() is not used to avoid using kb::writeTo method handle
@@ -297,7 +358,36 @@ public class VirtualLeafBytes<V> {
         kb.writeTo(out);
     }
 
+    private void writeKey(final SlimWriter out) {
+        final Bytes kb = keyBytes();
+        // ProtoWriterTools.writeDelimited() is not used to avoid using kb::writeTo method handle
+        ProtoWriterTools.writeTag(out, FIELD_LEAFRECORD_KEY);
+        out.writeVarInt(Math.toIntExact(kb.length()), false);
+        kb.writeTo(out);
+    }
+
     private void writeValue(final WritableSequentialData out) {
+        // Use valueBytes instead of valueBytes() to avoid allocating a byte array
+        final Bytes vb = valueBytes;
+        if (vb != null) {
+            // ProtoWriterTools.writeDelimited() is not used to avoid using vb::writeTo method handle
+            ProtoWriterTools.writeTag(out, FIELD_LEAFRECORD_VALUE);
+            out.writeVarInt(Math.toIntExact(vb.length()), false);
+            vb.writeTo(out);
+        } else if (value != null) {
+            assert valueCodec != null;
+            try {
+                // ProtoWriterTools.writeDelimited() is not used to avoid using vb::writeTo method handle
+                ProtoWriterTools.writeTag(out, FIELD_LEAFRECORD_VALUE);
+                out.writeVarInt(valueCodec.measureRecord(value), false);
+                valueCodec.write(value, out);
+            } catch (final IOException z) {
+                throw new UncheckedIOException("Cannot serialize leaf value", z);
+            }
+        }
+    }
+
+    private void writeValue(final SlimWriter out) {
         // Use valueBytes instead of valueBytes() to avoid allocating a byte array
         final Bytes vb = valueBytes;
         if (vb != null) {

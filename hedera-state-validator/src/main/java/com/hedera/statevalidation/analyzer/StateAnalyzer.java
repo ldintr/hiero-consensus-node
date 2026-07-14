@@ -6,6 +6,7 @@ import static com.swirlds.base.units.UnitConstants.BYTES_TO_MEBIBYTES;
 import static java.math.RoundingMode.HALF_UP;
 
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.statevalidation.report.StateReport;
 import com.hedera.statevalidation.report.StorageReport;
 import com.hedera.statevalidation.util.LongCountArray;
@@ -127,7 +128,7 @@ public final class StateAnalyzer {
                             case VirtualLeafBytes<?> leafRecord -> {
                                 final long path = leafRecord.path();
                                 final SerializableDataOutputStream outputStream =
-                                        new SerializableDataOutputStream(arrayOutputStream);
+                                        new SerializableDataOutputStream(new SlimWriter(arrayOutputStream));
                                 outputStream.writeByteArray(
                                         leafRecord.keyBytes().toByteArray());
                                 int itemSize = outputStream.size();
@@ -151,7 +152,7 @@ public final class StateAnalyzer {
                                     final ParsedBucket.BucketEntry entry = bucketIterator.next();
                                     final long path = entry.getValue();
                                     final SerializableDataOutputStream outputStream =
-                                            new SerializableDataOutputStream(arrayOutputStream);
+                                            new SerializableDataOutputStream(new SlimWriter(arrayOutputStream));
                                     outputStream.writeByteArray(
                                             entry.getKeyBytes().toByteArray());
                                     final int itemSize = outputStream.size() + /*path*/ Long.BYTES;

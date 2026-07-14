@@ -182,7 +182,7 @@ public class WrappedRecordFileBlockHashesDiskWriter implements AutoCloseable {
             // which is a valid protobuf encoding of the container message.
             // parseStrict shorthand omitted: we also need to validate max length, requiring the multi-arg overload.
             final var log = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(
-                    com.hedera.pbj.runtime.io.buffer.Bytes.wrap(allBytes).toReadableSequentialData(),
+                    com.hedera.pbj.runtime.io.buffer.Bytes.wrap(allBytes).toSlimBuffer(),
                     true,
                     false,
                     512,

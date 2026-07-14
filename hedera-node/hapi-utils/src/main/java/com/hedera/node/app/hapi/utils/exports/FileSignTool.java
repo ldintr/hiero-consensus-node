@@ -9,13 +9,13 @@ import static org.hiero.base.utility.CommonUtils.hex;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.services.stream.proto.HashAlgorithm;
 import com.hedera.services.stream.proto.HashObject;
 import com.hedera.services.stream.proto.RecordStreamFile;
 import com.hedera.services.stream.proto.SignatureFile;
 import com.hedera.services.stream.proto.SignatureObject;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -298,10 +298,10 @@ public class FileSignTool {
             LOGGER.info(MARKER, "Record stream file header is {}", fileHeaderString);
         }
 
-        try (final SerializableDataOutputStream dosMeta =
-                        new SerializableDataOutputStream(new HashingOutputStream(metadataStreamDigest));
-                final SerializableDataOutputStream dos = new SerializableDataOutputStream(
-                        new BufferedOutputStream(new HashingOutputStream(streamDigest)))) {
+        try (final SerializableDataOutputStream dosMeta = new SerializableDataOutputStream(
+                        new SlimWriter(new HashingOutputStream(metadataStreamDigest)));
+                final SerializableDataOutputStream dos =
+                        new SerializableDataOutputStream(new SlimWriter(new HashingOutputStream(streamDigest)))) {
             // parse record file
             final var recordPath = Path.of(recordFile).toAbsolutePath().normalize();
             final var authorizedDir =

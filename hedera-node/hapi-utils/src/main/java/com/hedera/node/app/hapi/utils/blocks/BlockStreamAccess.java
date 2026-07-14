@@ -199,7 +199,7 @@ public enum BlockStreamAccess {
                 try (final GZIPInputStream in = new GZIPInputStream(Files.newInputStream(path))) {
                     // parseStrict shorthand omitted intentionally: maxSize validation requires the multi-arg overload.
                     return Block.PROTOBUF.parse(
-                            Bytes.wrap(in.readAllBytes()).toReadableSequentialData(),
+                            Bytes.wrap(in.readAllBytes()).toSlimBuffer(),
                             true,
                             false,
                             DEFAULT_MAX_DEPTH,
@@ -207,7 +207,7 @@ public enum BlockStreamAccess {
                 }
             } else {
                 return Block.PROTOBUF.parse(
-                        Bytes.wrap(Files.readAllBytes(path)).toReadableSequentialData(),
+                        Bytes.wrap(Files.readAllBytes(path)).toSlimBuffer(),
                         true,
                         false,
                         DEFAULT_MAX_DEPTH,

@@ -20,7 +20,7 @@ final class BlockRecordFormatV6Test {
                 // round-trip the writing and parsing without losing any data.
                 final var serializedRec = BlockRecordFormatV6.INSTANCE.serialize(rec, BLOCK_NUM, VERSION);
                 final var parsedRecordStreamItem = RecordStreamItem.PROTOBUF.parse(
-                        serializedRec.protobufSerializedRecordStreamItem().toReadableSequentialData());
+                        serializedRec.protobufSerializedRecordStreamItem().toSlimBuffer());
                 assertThat(rec.transaction()).isEqualTo(parsedRecordStreamItem.transaction());
                 assertThat(rec.transactionRecord()).isEqualTo(parsedRecordStreamItem.record());
                 assertThat(rec.transactionSidecarRecords()).hasSameSizeAs(serializedRec.sideCarItems());

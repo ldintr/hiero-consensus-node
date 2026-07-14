@@ -9,6 +9,7 @@ import com.hedera.hapi.streams.TransactionSidecarRecord;
 import com.hedera.node.app.records.impl.producers.BlockRecordFormat;
 import com.hedera.node.app.records.impl.producers.SerializedSingleTransactionRecord;
 import com.hedera.node.app.state.SingleTransactionRecord;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -55,12 +56,11 @@ public final class BlockRecordFormatV6 implements BlockRecordFormat {
             assert Arrays.equals(HASH_HEADER, HexFormat.of().parseHex("1e7451a283da22f401000000"))
                     : "Hash object header is not the expected 1e7451a283da22f401000000";
             // compute RecordStreamObject header
-            ByteArrayOutputStream bout = new ByteArrayOutputStream();
-            SerializableDataOutputStream sout = new SerializableDataOutputStream(bout);
-            bout.reset();
+            SlimWriter slim = new SlimWriter();
+            SerializableDataOutputStream sout = new SerializableDataOutputStream(slim);
             sout.writeLong(RECORD_STREAM_OBJECT_CLASS_ID);
             sout.writeInt(RECORD_STREAM_OBJECT_CLASS_VERSION);
-            RECORD_STREAM_OBJECT_HEADER = bout.toByteArray();
+            RECORD_STREAM_OBJECT_HEADER = slim.toByteArray();
             assert Arrays.equals(RECORD_STREAM_OBJECT_HEADER, HexFormat.of().parseHex("e370929ba5429d8b00000001"))
                     : "RecordStreamObject header is not the expected e370929ba5429d8b00000001";
         } catch (IOException e) {

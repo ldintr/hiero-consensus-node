@@ -3,7 +3,8 @@ package com.swirlds.state.test.fixtures.merkle;
 
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.nio.charset.StandardCharsets;
@@ -32,21 +33,9 @@ public class TestStringCodec implements Codec<String> {
 
     @NonNull
     @Override
-    public String parse(
-            @NonNull ReadableSequentialData input,
-            boolean strictMode,
-            boolean parseUnknownFields,
-            int maxDepth,
-            int maxSize)
+    public String realParse(
+            @NonNull SlimBuffer input, boolean strictMode, boolean parseUnknownFields, int maxDepth, int maxSize)
             throws ParseException {
-        Objects.requireNonNull(input);
-        final var len = input.readInt();
-        return len == 0 ? "" : input.readBytes(len).asUtf8String();
-    }
-
-    @NonNull
-    @Override
-    public String parse(final @NonNull ReadableSequentialData input, final boolean strictMode, final int maxDepth) {
         Objects.requireNonNull(input);
         final var len = input.readInt();
         return len == 0 ? "" : input.readBytes(len).asUtf8String();
@@ -61,14 +50,21 @@ public class TestStringCodec implements Codec<String> {
         output.writeBytes(bytes);
     }
 
+    public void realWrite(final @NonNull String value, final @NonNull SlimWriter output) {
+        Objects.requireNonNull(value);
+        Objects.requireNonNull(output);
+        final byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        output.writeInt(bytes.length);
+        output.writeBytes(bytes);
+    }
+
     @Override
-    public int measure(final @NonNull ReadableSequentialData input) {
+    public int measure(final @NonNull SlimBuffer input) {
         return input.readInt() + Integer.BYTES;
     }
 
     @Override
-    public boolean fastEquals(final @NonNull String value, final @NonNull ReadableSequentialData input)
-            throws ParseException {
+    public boolean fastEquals(final @NonNull String value, final @NonNull SlimBuffer input) throws ParseException {
         Objects.requireNonNull(value);
         Objects.requireNonNull(input);
         return value.equals(parse(input));

@@ -83,7 +83,7 @@ class VirtualMapIteratorTest extends VirtualTestBase {
         it.setFilter(leaf -> {
             final Bytes keyBytes = leaf.keyBytes();
             // TestKey.longToKey puts a long (8 bytes)
-            final long keyLong = keyBytes.toReadableSequentialData().readLong();
+            final long keyLong = keyBytes.toSlimBuffer().readLong();
             return keyLong % 2 == 0;
         });
 

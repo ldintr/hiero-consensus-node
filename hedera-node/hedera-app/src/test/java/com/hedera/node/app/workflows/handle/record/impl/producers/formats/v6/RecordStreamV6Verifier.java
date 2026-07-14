@@ -17,6 +17,7 @@ import com.hedera.hapi.streams.TransactionSidecarRecord;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.BlockRecordStreamConfig;
 import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
@@ -310,7 +311,8 @@ public class RecordStreamV6Verifier {
         // create metadata hash
         HashingOutputStream hashingOutputStream =
                 new HashingOutputStream(MessageDigest.getInstance(DigestType.SHA_384.algorithmName()));
-        SerializableDataOutputStream dataOutputStream = new SerializableDataOutputStream(hashingOutputStream);
+        SerializableDataOutputStream dataOutputStream =
+                new SerializableDataOutputStream(new SlimWriter(hashingOutputStream));
         dataOutputStream.writeInt(recordStreamConfig.recordFileVersion());
         dataOutputStream.writeInt(recordFile.hapiProtoVersion().major());
         dataOutputStream.writeInt(recordFile.hapiProtoVersion().minor());

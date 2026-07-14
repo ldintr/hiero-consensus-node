@@ -7,9 +7,9 @@ import static java.nio.file.Files.exists;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.util.Objects.requireNonNull;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -275,7 +275,7 @@ public final class FileUtils {
         throwIfFileExists(file);
 
         try (final FileOutputStream fileOut = new FileOutputStream(file.toFile());
-                final BufferedOutputStream bufOut = new BufferedOutputStream(fileOut);
+                final SlimWriter bufOut = new SlimWriter(fileOut);
                 final SerializableDataOutputStream out = new SerializableDataOutputStream(bufOut)) {
 
             writeMethod.accept(out);

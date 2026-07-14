@@ -52,7 +52,7 @@ final class KeyProtoCodecTest {
 
         assertThat(serializedKey.bytes()).hasSizeLessThanOrEqualTo(MAX_TRANSACTION_BYTES);
         assertThatThrownBy(() -> Key.PROTOBUF.parse(
-                        Bytes.wrap(serializedKey.bytes()).toReadableSequentialData(),
+                        Bytes.wrap(serializedKey.bytes()).toSlimBuffer(),
                         false,
                         false,
                         DEFAULT_MAX_DEPTH,
@@ -101,7 +101,7 @@ final class KeyProtoCodecTest {
                 () -> {
                     try {
                         Key.PROTOBUF.parse(
-                                Bytes.wrap(serializedKey).toReadableSequentialData(),
+                                Bytes.wrap(serializedKey).toSlimBuffer(),
                                 false,
                                 false,
                                 maxDepth,

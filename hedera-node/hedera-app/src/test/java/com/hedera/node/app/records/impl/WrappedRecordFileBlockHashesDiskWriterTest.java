@@ -61,7 +61,7 @@ class WrappedRecordFileBlockHashesDiskWriterTest extends AppTestBase {
 
             final var allBytes = Files.readAllBytes(file);
             final WrappedRecordFileBlockHashesLog log = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(
-                    Bytes.wrap(allBytes).toReadableSequentialData(), false, false, 64, allBytes.length);
+                    Bytes.wrap(allBytes).toSlimBuffer(), false, false, 64, allBytes.length);
             assertEquals(1, log.entries().size(), "Expected corrupt file to be truncated and rewritten");
         }
     }
@@ -117,7 +117,7 @@ class WrappedRecordFileBlockHashesDiskWriterTest extends AppTestBase {
 
             final var allBytes = Files.readAllBytes(file);
             final WrappedRecordFileBlockHashesLog log = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(
-                    Bytes.wrap(allBytes).toReadableSequentialData(), false, false, 64, allBytes.length);
+                    Bytes.wrap(allBytes).toSlimBuffer(), false, false, 64, allBytes.length);
 
             assertEquals(List.of(e0, e1), log.entries(), "Expected entries to parse back from the on-disk file");
         }

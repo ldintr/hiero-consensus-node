@@ -15,6 +15,8 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.UnknownField;
 import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
@@ -70,8 +72,8 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
      * @return Parsed EntityIdGenerator model object or null if data input was null or empty
      * @throws ParseException If parsing fails
      */
-    public @NonNull EntityIdGenerator parse(
-            @NonNull final ReadableSequentialData input,
+    public @NonNull EntityIdGenerator realParse(
+            @NonNull final SlimBuffer input,
             final boolean strictMode,
             final boolean parseUnknownFields,
             final int maxDepth,
@@ -87,8 +89,8 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
 
             // -- PARSE LOOP ---------------------------------------------
             // Continue to parse bytes out of the input stream until we get to the end.
-            while (input.hasRemaining()) {
-                // Note: ReadableStreamingData.hasRemaining() won't flip to false
+            while (input.hasMore()) {
+                // Note: SlimBuffer.hasMore() won't flip to false
                 // until the end of stream is actually hit with a read operation.
                 // So we catch this exception here and **only** here, because an EOFException
                 // anywhere else suggests that we're processing malformed data and so
@@ -190,6 +192,20 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
         }
     }
 
+    public void realWrite(@NonNull EntityIdGenerator data, @NonNull final SlimWriter out) throws IOException {
+        // [1] - nextId
+        writeLong(out, EntityIdGeneratorSchema.NEXT_ID, data.nextId(), true);
+
+        // Check if not-empty to avoid creating a lambda if there's nothing to write.
+        if (!data.getUnknownFields().isEmpty()) {
+            data.getUnknownFields().forEach(uf -> {
+                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
+                out.writeVarInt(tag, false);
+                uf.bytes().writeTo(out);
+            });
+        }
+    }
+
     /**
      * Writes an item to the given byte array, this is a performance focused method. In non-performance centric use
      * cases there are simpler methods such as toBytes() or writing to a {@link WritableStreamingData}.
@@ -253,8 +269,7 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
      * @return true if the bytes represent the item, false otherwise.
      * @throws ParseException If parsing fails
      */
-    public boolean fastEquals(@NonNull EntityIdGenerator item, @NonNull final ReadableSequentialData input)
-            throws ParseException {
+    public boolean fastEquals(@NonNull EntityIdGenerator item, @NonNull final SlimBuffer input) throws ParseException {
         return item.equals(parse(input));
     }
 

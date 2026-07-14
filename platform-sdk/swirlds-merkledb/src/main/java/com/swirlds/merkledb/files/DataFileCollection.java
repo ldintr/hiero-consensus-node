@@ -16,10 +16,9 @@ import static java.util.Collections.singletonList;
 import com.hedera.pbj.runtime.FieldDefinition;
 import com.hedera.pbj.runtime.FieldType;
 import com.hedera.pbj.runtime.ProtoWriterTools;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import com.swirlds.merkledb.FileStatisticAware;
 import com.swirlds.merkledb.KeyRange;
 import com.swirlds.merkledb.Snapshotable;
@@ -380,8 +379,7 @@ public class DataFileCollection implements FileStatisticAware, Snapshotable {
      *     within the file.
      * @throws IOException If there was a problem writing this data item to the file.
      */
-    public long storeDataItem(final Consumer<WritableSequentialData> dataItemWriter, final int dataItemSize)
-            throws IOException {
+    public long storeDataItem(final Consumer<SlimWriter> dataItemWriter, final int dataItemSize) throws IOException {
         final DataFileWriter currentDataFileForWriting = currentDataFileWriter.get();
         if (currentDataFileForWriting == null) {
             throw new IOException("Tried to put data " + dataItemWriter + " when we never started writing.");
@@ -697,8 +695,8 @@ public class DataFileCollection implements FileStatisticAware, Snapshotable {
         // while in save lock
         final KeyRange keyRange = validKeyRange;
         final Path metadataFile = directory.resolve(storeName + METADATA_FILENAME_SUFFIX);
-        try (final OutputStream fileOut = Files.newOutputStream(metadataFile)) {
-            final WritableSequentialData out = new WritableStreamingData(fileOut);
+        try (final OutputStream fileOut = Files.newOutputStream(metadataFile);
+                final SlimWriter out = new SlimWriter(fileOut)) {
             if (keyRange.getMinValidKey() != 0) {
                 ProtoWriterTools.writeTag(out, FIELD_FILECOLLECTION_MINVALIDKEY);
                 out.writeVarLong(keyRange.getMinValidKey(), false);
@@ -707,7 +705,6 @@ public class DataFileCollection implements FileStatisticAware, Snapshotable {
                 ProtoWriterTools.writeTag(out, FIELD_FILECOLLECTION_MAXVALIDKEY);
                 out.writeVarLong(keyRange.getMaxValidKey(), false);
             }
-            fileOut.flush();
         }
     }
 

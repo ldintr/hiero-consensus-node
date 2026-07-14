@@ -5,6 +5,7 @@ import static com.swirlds.base.units.UnitConstants.MILLISECONDS_TO_NANOSECONDS;
 import static com.swirlds.base.units.UnitConstants.SECONDS_TO_NANOSECONDS;
 import static org.hiero.consensus.event.stream.internal.TimestampStreamFileWriter.OBJECT_STREAM_VERSION;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.base.utility.Pair;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -326,7 +327,7 @@ public final class LinkedObjectStreamUtilities {
             throws IOException, NoSuchAlgorithmException, InvalidStreamFileException {
         MessageDigest md = MessageDigest.getInstance(DigestType.SHA_384.algorithmName());
         try (SerializableDataOutputStream outputStream =
-                new SerializableDataOutputStream(new HashingOutputStream(md))) {
+                new SerializableDataOutputStream(new SlimWriter(new HashingOutputStream(md)))) {
             // digest file header
             for (int num : streamType.getFileHeader()) {
                 outputStream.writeInt(num);

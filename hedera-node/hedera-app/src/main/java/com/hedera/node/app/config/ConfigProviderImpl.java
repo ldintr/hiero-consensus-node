@@ -139,7 +139,7 @@ public class ConfigProviderImpl extends ConfigProviderBase {
         requireNonNull(propertyFileContent);
         try {
             final var configurationList =
-                    ServicesConfigurationList.PROTOBUF.parseStrict(propertyFileContent.toReadableSequentialData());
+                    ServicesConfigurationList.PROTOBUF.parseStrict(propertyFileContent.toSlimBuffer());
             final var configSource = new SettingsConfigSource(configurationList.nameValue(), 101);
             builder.withSource(configSource);
         } catch (ParseException | NullPointerException e) {

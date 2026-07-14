@@ -8,6 +8,7 @@ import static com.swirlds.merkledb.files.hashmap.HalfDiskHashMap.INVALID_VALUE;
 import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -198,6 +199,18 @@ public final class ParsedBucket extends Bucket {
         }
     }
 
+    @Override
+    public void writeTo(final SlimWriter out) {
+        // Bucket index is not optional, write the value even if default (zero)
+        ProtoWriterTools.writeTag(out, FIELD_BUCKET_INDEX);
+        out.writeInt(bucketIndex);
+        for (final BucketEntry entry : entries) {
+            ProtoWriterTools.writeTag(out, FIELD_BUCKET_ENTRIES);
+            out.writeVarInt(entry.sizeInBytes(), false);
+            entry.writeTo(out);
+        }
+    }
+
     // =================================================================================================================
     // Private API
 
@@ -318,6 +331,15 @@ public final class ParsedBucket extends Bucket {
         }
 
         public void writeTo(final WritableSequentialData out) {
+            ProtoWriterTools.writeTag(out, Bucket.FIELD_BUCKETENTRY_HASHCODE);
+            out.writeInt(hashCode);
+            ProtoWriterTools.writeTag(out, Bucket.FIELD_BUCKETENTRY_VALUE);
+            out.writeLong(value);
+            ProtoWriterTools.writeDelimited(
+                    out, Bucket.FIELD_BUCKETENTRY_KEYBYTES, Math.toIntExact(keyBytes.length()), keyBytes::writeTo);
+        }
+
+        public void writeTo(final SlimWriter out) {
             ProtoWriterTools.writeTag(out, Bucket.FIELD_BUCKETENTRY_HASHCODE);
             out.writeInt(hashCode);
             ProtoWriterTools.writeTag(out, Bucket.FIELD_BUCKETENTRY_VALUE);

@@ -3,20 +3,22 @@ package org.hiero.base.io.streams;
 
 import static org.hiero.base.io.streams.SerializableStreamConstants.BOOLEAN_BYTES;
 import static org.hiero.base.io.streams.SerializableStreamConstants.CLASS_ID_BYTES;
+import static org.hiero.base.io.streams.SerializableStreamConstants.DEFAULT_CHECKSUM;
 import static org.hiero.base.io.streams.SerializableStreamConstants.NULL_CLASS_ID;
+import static org.hiero.base.io.streams.SerializableStreamConstants.NULL_INSTANT_EPOCH_SECOND;
 import static org.hiero.base.io.streams.SerializableStreamConstants.NULL_LIST_ARRAY_LENGTH;
 import static org.hiero.base.io.streams.SerializableStreamConstants.NULL_VERSION;
 import static org.hiero.base.io.streams.SerializableStreamConstants.SERIALIZATION_PROTOCOL_VERSION;
 import static org.hiero.base.io.streams.SerializableStreamConstants.VERSION_BYTES;
 
 import com.hedera.pbj.runtime.Codec;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -24,36 +26,384 @@ import org.hiero.base.io.FunctionalSerialize;
 import org.hiero.base.io.SelfSerializable;
 import org.hiero.base.io.SerializableDet;
 import org.hiero.base.io.SerializableWithKnownLength;
+import org.hiero.base.utility.CommonUtils;
 
 /**
- * A drop-in replacement for {@link DataOutputStream}, which handles SerializableDet classes specially.
+ * A drop-in replacement for {@link java.io.DataOutputStream}, which handles SerializableDet classes specially.
  * It is designed for use with the SerializableDet interface, and its use is described there.
+ * All writes are routed through a single {@link SlimWriter} buffer, eliminating any write-ordering hazard.
  */
-public class SerializableDataOutputStream extends AugmentedDataOutputStream {
-    /** A stream used to write PBJ objects */
-    private final WritableSequentialData writableSequentialData;
+public class SerializableDataOutputStream extends OutputStream {
+
+    private final SlimWriter slimWriter;
 
     /**
-     * Creates a new data output stream to write data to the specified
-     * underlying output stream. The counter <code>written</code> is
-     * set to zero.
+     * Creates a new data output stream backed by the given {@link SlimWriter}.
      *
-     * @param out the underlying output stream, to be saved for later use.
-     * @see java.io.FilterOutputStream#out
+     * @param writer the underlying writer
      */
-    public SerializableDataOutputStream(@NonNull final OutputStream out) {
-        super(out);
-        writableSequentialData = new WritableStreamingData(out);
+    public SerializableDataOutputStream(@NonNull final SlimWriter writer) {
+        slimWriter = writer;
+    }
+
+    // -------------------------------------------------------------------------
+    // Core write primitives (DataOutputStream-equivalent, all big-endian)
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void write(final int b) {
+        slimWriter.writeByte((byte) b);
+    }
+
+    @Override
+    public void write(@NonNull final byte[] b) {
+        slimWriter.writeBytes(b);
+    }
+
+    @Override
+    public void write(@NonNull final byte[] b, final int off, final int len) {
+        slimWriter.writeBytes(b, off, len);
+    }
+
+    public void writeBoolean(final boolean v) throws IOException {
+        slimWriter.writeByte((byte) (v ? 1 : 0));
+    }
+
+    public void writeByte(final int v) throws IOException {
+        slimWriter.writeByte((byte) v);
+    }
+
+    public void writeShort(final int v) throws IOException {
+        slimWriter.writeByte2((byte) (v >>> 8), (byte) v);
+    }
+
+    public void writeInt(final int v) throws IOException {
+        slimWriter.writeInt(v); // delegates to writeIntBE
+    }
+
+    public void writeLong(final long v) throws IOException {
+        slimWriter.writeLong(v); // delegates to writeLongBE
+    }
+
+    public void writeFloat(final float v) throws IOException {
+        slimWriter.writeIntBE(Float.floatToRawIntBits(v));
+    }
+
+    public void writeDouble(final double v) throws IOException {
+        slimWriter.writeLongBE(Double.doubleToRawLongBits(v));
     }
 
     /**
-     * Write the serialization protocol version number to the stream. Should be used when serializing to a file that
-     * can be read by future versions.
+     * Returns the total number of bytes written to this stream so far.
+     */
+    public int size() {
+        return slimWriter.position();
+    }
+
+    @Override
+    public void flush() throws IOException {
+        try {
+            slimWriter.flush();
+        } catch (final UncheckedIOException e) {
+            throw e.getCause();
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        try {
+            slimWriter.close();
+        } catch (final UncheckedIOException e) {
+            throw e.getCause();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Augmented write helpers (formerly AugmentedDataOutputStream)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Writes a byte array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @param writeChecksum whether to write the checksum or not
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeByteArray(@Nullable final byte[] data, final boolean writeChecksum) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+            return;
+        }
+        writeInt(data.length);
+        if (writeChecksum) {
+            writeInt(101 - data.length);
+        }
+        write(data);
+    }
+
+    /**
+     * Writes a byte array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeByteArray(@Nullable final byte[] data) throws IOException {
+        writeByteArray(data, DEFAULT_CHECKSUM);
+    }
+
+    /**
+     * Writes an int array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeIntArray(@Nullable final int[] data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.length);
+            for (final int datum : data) {
+                writeInt(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes an int list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeIntList(@Nullable final List<Integer> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final int datum : data) {
+                writeInt(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a long array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeLongArray(@Nullable final long[] data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.length);
+            for (final long datum : data) {
+                writeLong(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a long list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeLongList(@Nullable final List<Long> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final long datum : data) {
+                writeLong(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a boolean list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeBooleanList(@Nullable final List<Boolean> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final boolean datum : data) {
+                writeBoolean(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a float array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeFloatArray(@Nullable final float[] data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.length);
+            for (final float datum : data) {
+                writeFloat(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a float list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeFloatList(@Nullable final List<Float> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final float datum : data) {
+                writeFloat(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a double array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeDoubleArray(@Nullable final double[] data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.length);
+            for (final double datum : data) {
+                writeDouble(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a double list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeDoubleList(@Nullable final List<Double> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final double datum : data) {
+                writeDouble(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a String array to the stream. Can be null.
+     *
+     * @param data the array to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeStringArray(@Nullable final String[] data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.length);
+            for (final String datum : data) {
+                writeNormalisedString(datum);
+            }
+        }
+    }
+
+    /**
+     * Writes a string list to the stream. Can be null.
+     *
+     * @param data the list to write
+     * @throws IOException thrown if any IO problems occur
+     */
+    public void writeStringList(@Nullable final List<String> data) throws IOException {
+        if (data == null) {
+            writeInt(NULL_LIST_ARRAY_LENGTH);
+        } else {
+            writeInt(data.size());
+            for (final String datum : data) {
+                writeNormalisedString(datum);
+            }
+        }
+    }
+
+    /**
+     * Normalizes the string in accordance with the Swirlds default normalization method (NFD) and writes it
+     * to the output stream encoded in the Swirlds default charset (UTF8).
+     *
+     * @param s the String to be converted and written
+     * @throws IOException thrown if there are any problems during the operation
+     */
+    public void writeNormalisedString(@Nullable final String s) throws IOException {
+        writeByteArray(CommonUtils.getNormalisedStringBytes(s));
+    }
+
+    /**
+     * Write an Instant to the stream.
+     *
+     * @param instant the instant to write
+     * @throws IOException thrown if there are any problems during the operation
+     */
+    public void writeInstant(@Nullable final Instant instant) throws IOException {
+        if (instant == null) {
+            writeLong(NULL_INSTANT_EPOCH_SECOND);
+            return;
+        }
+        writeLong(instant.getEpochSecond());
+        writeLong(instant.getNano());
+    }
+
+    // -------------------------------------------------------------------------
+    // Static length helpers (formerly on AugmentedDataOutputStream)
+    // -------------------------------------------------------------------------
+
+    public static int getArraySerializedLength(@Nullable final long[] data) {
+        int totalByteLength = Integer.BYTES;
+        totalByteLength += (data == null) ? 0 : (data.length * Long.BYTES);
+        return totalByteLength;
+    }
+
+    public static int getArraySerializedLength(@Nullable final int[] data) {
+        int totalByteLength = Integer.BYTES;
+        totalByteLength += (data == null) ? 0 : (data.length * Integer.BYTES);
+        return totalByteLength;
+    }
+
+    public static int getArraySerializedLength(@Nullable final byte[] data) {
+        return getArraySerializedLength(data, DEFAULT_CHECKSUM);
+    }
+
+    public static int getArraySerializedLength(@Nullable final byte[] data, final boolean writeChecksum) {
+        int totalByteLength = Integer.BYTES;
+        if (writeChecksum) {
+            totalByteLength += Integer.BYTES;
+        }
+        totalByteLength += (data == null) ? 0 : data.length;
+        return totalByteLength;
+    }
+
+    // -------------------------------------------------------------------------
+    // SelfSerializable support
+    // -------------------------------------------------------------------------
+
+    /**
+     * Write the serialization protocol version number to the stream.
      *
      * @throws IOException thrown if any IO problems occur
      */
     public void writeProtocolVersion() throws IOException {
-        this.writeInt(SERIALIZATION_PROTOCOL_VERSION);
+        writeInt(SERIALIZATION_PROTOCOL_VERSION);
     }
 
     private void writeSerializable(
@@ -74,9 +424,7 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
     }
 
     /**
-     * Writes a {@link SelfSerializable} object to a stream. If the class is known at the time of deserialization, the
-     * the {@code writeClassId} param can be set to false. If the class might be unknown when deserializing, then the
-     * {@code writeClassId} must be written.
+     * Writes a {@link SelfSerializable} object to a stream.
      *
      * @param serializable the object to serialize
      * @param writeClassId whether to write the class ID or not
@@ -88,9 +436,7 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
     }
 
     /**
-     * Writes a list of objects returned by an {@link Iterator} when the size in known ahead of time. If the class is
-     * known at the time of deserialization, the {@code writeClassId} param can be set to false. If the class might be
-     * unknown when deserializing, then the {@code writeClassId} must be written.
+     * Writes a list of objects returned by an {@link Iterator} when the size is known ahead of time.
      *
      * @param iterator the iterator that returns the data
      * @param size the size of the dataset
@@ -102,18 +448,15 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
     public <T extends SelfSerializable> void writeSerializableIterableWithSize(
             @NonNull final Iterator<T> iterator, final int size, final boolean writeClassId, final boolean allSameClass)
             throws IOException {
-        this.writeInt(size);
+        writeInt(size);
         if (size == 0) {
             return;
         }
         writeBoolean(allSameClass);
-        // if the class ID and version is written only once, we need to write it when we come across
-        // the first non-null member, this variable will keep track of whether its written or not
         boolean classIdVersionWritten = false;
         while (iterator.hasNext()) {
-            SelfSerializable serializable = iterator.next();
+            final SelfSerializable serializable = iterator.next();
             if (!allSameClass) {
-                // if classes are different, we just write every class one by one
                 writeSerializable(serializable, writeClassId);
                 continue;
             }
@@ -123,7 +466,6 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
             }
             writeBoolean(false);
             if (!classIdVersionWritten) {
-                // this is the first non-null member, so we write the ID and version
                 writeClassIdVersion(serializable, writeClassId);
                 classIdVersionWritten = true;
             }
@@ -132,31 +474,28 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
     }
 
     /**
-     * Writes a list of {@link SelfSerializable} objects to the stream
+     * Writes a list of {@link SelfSerializable} objects to the stream.
      *
      * @param list the list to write, can be null
-     * @param writeClassId set to true if the classID should be written. This can be false if the class is known when
-     * de-serializing
+     * @param writeClassId set to true if the classID should be written
      * @param allSameClass should be set to true if all the objects in the list are the same class
      * @param <T> the class stored in the list
      * @throws IOException thrown if any IO problems occur
      */
     public <T extends SelfSerializable> void writeSerializableList(
             @Nullable final List<T> list, final boolean writeClassId, final boolean allSameClass) throws IOException {
-
         if (list == null) {
-            this.writeInt(NULL_LIST_ARRAY_LENGTH);
+            writeInt(NULL_LIST_ARRAY_LENGTH);
             return;
         }
         writeSerializableIterableWithSize(list.iterator(), list.size(), writeClassId, allSameClass);
     }
 
     /**
-     * Writes an array of {@link SelfSerializable} objects to the stream
+     * Writes an array of {@link SelfSerializable} objects to the stream.
      *
      * @param array the array to write, can be null
-     * @param writeClassId set to true if the classID should be written. This can be false if the class is known when
-     * de-serializing
+     * @param writeClassId set to true if the classID should be written
      * @param allSameClass should be set to true if all the objects in the list are the same class
      * @param <T> the class stored in the list
      * @throws IOException thrown if any IO problems occur
@@ -170,18 +509,9 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
         }
     }
 
-    /**
-     * Get the serialized byte length an array of {@link SerializableWithKnownLength} objects
-     *
-     * @param array the array to write, can be null
-     * @param writeClassId set to true if the classID should be written. This can be false if the class is known when
-     * de-serializing
-     * @param allSameClass should be set to true if all the objects in the array are the same class
-     * @param <T> the class stored in the array
-     */
     public static <T extends SerializableWithKnownLength> int getSerializedLength(
             @Nullable final T[] array, final boolean writeClassId, final boolean allSameClass) {
-        int totalByteLength = Integer.BYTES; // length of array size
+        int totalByteLength = Integer.BYTES;
         if (array == null || array.length == 0) {
             return totalByteLength;
         }
@@ -199,28 +529,18 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
             }
             totalByteLength += BOOLEAN_BYTES;
             if (!classIdVersionWritten) {
-                // this is the first non-null member, so we write the ID and version
                 totalByteLength += VERSION_BYTES;
                 if (writeClassId) {
                     totalByteLength += CLASS_ID_BYTES;
                 }
                 classIdVersionWritten = true;
             }
-            // version and class info already written
             totalByteLength += getInstanceSerializedLength(t, false, false);
         }
 
         return totalByteLength;
     }
 
-    /**
-     * Get the serialized byte length of {@link SerializableWithKnownLength} object
-     *
-     * @param data array to write, should not be null
-     * @param writeVersion set to true if the version will be serialized
-     * @param writeClassId set to true if the classID should be written. This can be false if the class is known when
-     * de-serializing
-     */
     public static <T extends SerializableWithKnownLength> int getInstanceSerializedLength(
             @Nullable final T data, final boolean writeVersion, final boolean writeClassId) {
         if (data == null) {
@@ -231,24 +551,22 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
             totalByteLength += CLASS_ID_BYTES;
         }
         if (writeVersion) {
-            totalByteLength += VERSION_BYTES; // version integer
+            totalByteLength += VERSION_BYTES;
         }
-        totalByteLength += data.getSerializedLength(); // data its own content serialized length
+        totalByteLength += data.getSerializedLength();
         return totalByteLength;
     }
 
-    /** This method assumes serializable is not null */
     protected void writeClassIdVersion(@NonNull final SerializableDet serializable, final boolean writeClassId)
             throws IOException {
-
         if (writeClassId) {
-            this.writeLong(serializable.getClassId());
+            writeLong(serializable.getClassId());
         }
-        this.writeInt(serializable.getVersion());
+        writeInt(serializable.getVersion());
     }
 
     /**
-     * Write a PBJ record to the stream
+     * Write a PBJ record to the stream.
      *
      * @param record the record to write
      * @param codec the codec to use to write the record
@@ -258,8 +576,9 @@ public class SerializableDataOutputStream extends AugmentedDataOutputStream {
      */
     public <T> long writePbjRecord(@NonNull final T record, @NonNull final Codec<T> codec) throws IOException {
         final int recordSize = codec.measureRecord(record);
-        writeInt(recordSize);
-        codec.write(record, writableSequentialData);
+        slimWriter.writeInt(recordSize);
+        codec.write(record, slimWriter);
+        slimWriter.flush();
         return recordSize + Integer.BYTES;
     }
 }

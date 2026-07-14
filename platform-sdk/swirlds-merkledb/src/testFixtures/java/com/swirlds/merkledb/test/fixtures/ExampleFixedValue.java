@@ -3,7 +3,8 @@ package com.swirlds.merkledb.test.fixtures;
 
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -44,7 +45,7 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
         System.arraycopy(data, 0, this.data, 0, data.length);
     }
 
-    public ExampleFixedValue(final ReadableSequentialData in) {
+    public ExampleFixedValue(final SlimBuffer in) {
         this.id = in.readInt();
         final int len = in.readInt();
         this.data = new byte[len];
@@ -71,6 +72,12 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
         out.writeBytes(data);
     }
 
+    public void writeTo(SlimWriter out) {
+        out.writeInt(id);
+        out.writeInt(data.length);
+        out.writeBytes(data);
+    }
+
     public static class ExampleFixedValueCodec implements Codec<ExampleFixedValue> {
 
         @Override
@@ -81,12 +88,8 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
 
         @NonNull
         @Override
-        public ExampleFixedValue parse(
-                @NonNull ReadableSequentialData in,
-                boolean strictMode,
-                boolean parseUnknownFields,
-                int maxDepth,
-                int maxSize) {
+        public ExampleFixedValue realParse(
+                @NonNull SlimBuffer in, boolean strictMode, boolean parseUnknownFields, int maxDepth, int maxSize) {
             return new ExampleFixedValue(in);
         }
 
@@ -95,8 +98,12 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
             value.writeTo(out);
         }
 
+        public void realWrite(@NonNull ExampleFixedValue value, @NonNull SlimWriter out) {
+            value.writeTo(out);
+        }
+
         @Override
-        public int measure(@NonNull ReadableSequentialData in) {
+        public int measure(@NonNull SlimBuffer in) {
             throw new UnsupportedOperationException("ExampleFixedValueCodec.measure() not implemented");
         }
 
@@ -106,8 +113,7 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
         }
 
         @Override
-        public boolean fastEquals(@NonNull ExampleFixedValue value, @NonNull ReadableSequentialData in)
-                throws ParseException {
+        public boolean fastEquals(@NonNull ExampleFixedValue value, @NonNull SlimBuffer in) throws ParseException {
             final ExampleFixedValue other = parse(in);
             return other.equals(value);
         }

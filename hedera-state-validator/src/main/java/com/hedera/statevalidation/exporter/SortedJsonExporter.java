@@ -12,6 +12,7 @@ import com.hedera.hapi.platform.state.StateValue;
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.statevalidation.util.JsonUtils;
 import com.hedera.statevalidation.util.StateUtils;
@@ -189,7 +190,7 @@ public class SortedJsonExporter {
                 return;
             }
             final Bytes keyBytes = leafRecord.keyBytes();
-            final ReadableSequentialData keyData = keyBytes.toReadableSequentialData();
+            final SlimBuffer keyData = keyBytes.toSlimBuffer();
             final int tag = keyData.readVarInt(false);
             final int actualStateId = tag >> TAG_FIELD_OFFSET;
             if (actualStateId == 1) {
@@ -238,7 +239,7 @@ public class SortedJsonExporter {
                 try {
                     stateKey = StateKey.PROTOBUF.parse(keyBytes);
                     stateValue = StateValue.PROTOBUF.parse(
-                            valueBytes.toReadableSequentialData(),
+                            valueBytes.toSlimBuffer(),
                             false,
                             false,
                             Codec.DEFAULT_MAX_DEPTH,

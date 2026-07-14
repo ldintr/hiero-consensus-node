@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.hapi.platform.event.GossipEvent;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -79,10 +79,10 @@ public class GossipEventTest {
 
         final byte[] byteArray;
 
-        try (final ByteArrayOutputStream bs = new ByteArrayOutputStream();
-                final SerializableDataOutputStream ss = new SerializableDataOutputStream(bs)) {
+        try (final SlimWriter writer = new SlimWriter();
+                final SerializableDataOutputStream ss = new SerializableDataOutputStream(writer)) {
             ss.writePbjRecord(original, GossipEvent.PROTOBUF);
-            byteArray = bs.toByteArray();
+            byteArray = writer.toByteArray();
         }
         for (int i = 0; i < byteArray.length; i++) {
             final byte[] truncated = Arrays.copyOf(byteArray, i);

@@ -7,8 +7,8 @@ import com.hedera.hapi.streams.HashObject;
 import com.hedera.hapi.streams.SignatureFile;
 import com.hedera.hapi.streams.SignatureObject;
 import com.hedera.hapi.streams.SignatureType;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -65,13 +65,14 @@ final class SignatureWriterV6 {
         // write signature file
         final var sigFilePath = getSigFilePath(recordFilePath);
         try (final var fileOut = Files.newOutputStream(sigFilePath, StandardOpenOption.CREATE_NEW)) {
-            final var streamingData = new WritableStreamingData(fileOut);
+            final var streamingData = new SlimWriter(fileOut);
             Bytes metadataHash = null;
             if (writeMetadataSignature) {
                 // create metadata hash
                 HashingOutputStream hashingOutputStream =
                         new HashingOutputStream(MessageDigest.getInstance(DigestType.SHA_384.algorithmName()));
-                SerializableDataOutputStream dataOutputStream = new SerializableDataOutputStream(hashingOutputStream);
+                SerializableDataOutputStream dataOutputStream =
+                        new SerializableDataOutputStream(new SlimWriter(hashingOutputStream));
                 dataOutputStream.writeInt(recordFileVersion);
                 dataOutputStream.writeInt(hapiProtoVersion.major());
                 dataOutputStream.writeInt(hapiProtoVersion.minor());
@@ -92,6 +93,7 @@ final class SignatureWriterV6 {
             SignatureFile.PROTOBUF.write(signatureFile, streamingData);
             logger.debug("signature file saved: {}", sigFilePath);
             // flush
+            streamingData.flush();
             fileOut.flush();
         } catch (final FileAlreadyExistsException ignore) {
             // This is part of normal operations, as a reconnected node will very commonly

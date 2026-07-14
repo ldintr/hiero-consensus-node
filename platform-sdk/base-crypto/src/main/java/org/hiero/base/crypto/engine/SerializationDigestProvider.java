@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.hiero.base.crypto.engine;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.logging.legacy.LogMarker;
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -36,7 +37,7 @@ public class SerializationDigestProvider
             final SelfSerializable item,
             final Void optionalData) {
         algorithm.resetDigest(); // probably not needed, just to be safe
-        try (SerializableDataOutputStream out = new SerializableDataOutputStream(algorithm)) {
+        try (SerializableDataOutputStream out = new SerializableDataOutputStream(new SlimWriter(algorithm))) {
             out.writeSerializable(item, true);
             out.flush();
 

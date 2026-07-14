@@ -7,9 +7,8 @@ import static com.swirlds.merkledb.files.DataFileCommon.PAGE_SIZE;
 import static com.swirlds.merkledb.files.DataFileCommon.createDataFilePath;
 
 import com.hedera.pbj.runtime.ProtoWriterTools;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
-import com.hedera.pbj.runtime.io.buffer.MemoryData;
 import com.swirlds.merkledb.utilities.MerkleDbFileUtils;
 import java.io.IOException;
 import java.lang.foreign.Arena;
@@ -75,8 +74,8 @@ public final class DataFileWriter {
     // objects at specified offsets (positioned writes). Once this API is available, data
     // file writers will write directly into MemoryData (wrapped over mapped memory segments).
     // See https://github.com/hashgraph/pbj/issues/790 for details
-    private static final ThreadLocal<MemorySegment> SEGMENT_CACHE = new ThreadLocal<>();
-    private static final ThreadLocal<MemoryData> WRITE_CACHE = new ThreadLocal<>();
+    // private static final ThreadLocal<MemorySegment> SEGMENT_CACHE = new ThreadLocal<>();
+    private static final ThreadLocal<SlimWriter> WRITE_CACHE = new ThreadLocal<>();
 
     /** The path to the data file we are writing */
     private final Path path;
@@ -221,21 +220,17 @@ public final class DataFileWriter {
     }
 
     /**
-     * Returns a temp MemoryData buffer with position set to 0 and limit set to sizeToWrite. The
-     * buffer can be used on the current thread only.
+     * Returns the thread-local SlimWriter, reset and ready to accept a fresh write.
      */
-    private MemoryData getTempLocalWriteBuffer(final int sizeToWrite) {
-        MemoryData out = WRITE_CACHE.get();
-        if ((out == null) || (out.capacity() < sizeToWrite)) {
-            final MemorySegment segment = MemorySegment.ofArray(new byte[sizeToWrite]);
-            SEGMENT_CACHE.set(segment);
-            out = MemoryData.wrap(segment);
-            WRITE_CACHE.set(out);
+    private SlimWriter getSlimWriter() {
+        SlimWriter writer = WRITE_CACHE.get();
+        if (writer == null) {
+            writer = new SlimWriter();
+            WRITE_CACHE.set(writer);
         } else {
-            out.position(0);
-            out.limit(sizeToWrite);
+            writer.reset();
         }
-        return out;
+        return writer;
     }
 
     /**
@@ -284,8 +279,7 @@ public final class DataFileWriter {
      * @return the data location of written data in bytes
      * @throws IOException if there was a problem appending data to the file
      */
-    public long storeDataItem(final Consumer<WritableSequentialData> dataItemWriter, final int dataItemSize)
-            throws IOException {
+    public long storeDataItem(final Consumer<SlimWriter> dataItemWriter, final int dataItemSize) throws IOException {
         final int sizeToWrite = ProtoWriterTools.sizeOfDelimited(FIELD_DATAFILE_ITEMS, dataItemSize);
         return store(
                 out -> ProtoWriterTools.writeDelimited(out, FIELD_DATAFILE_ITEMS, dataItemSize, dataItemWriter),
@@ -309,7 +303,7 @@ public final class DataFileWriter {
         return store(out -> out.writeBytes(dataItemWithTag), sizeToWrite);
     }
 
-    private long store(final Consumer<MemoryData> writer, final int sizeToWrite) throws IOException {
+    private long store(final Consumer<SlimWriter> writer, final int sizeToWrite) throws IOException {
         if (closed.get()) {
             throw new IOException("Data file is already closed");
         }
@@ -324,18 +318,17 @@ public final class DataFileWriter {
         final WritingWindow writingWindow = getWritingWindow(writingWindowIndex);
 
         try {
-            final MemoryData out = getTempLocalWriteBuffer(sizeToWrite);
+            final SlimWriter out = getSlimWriter();
             writer.accept(out);
             // double check that we wrote the expected number of bytes
-            if (out.remaining() != 0) {
+            if (out.position() != sizeToWrite) {
                 throw new IOException("Estimated size / written bytes mismatch: expected=" + sizeToWrite + " written="
-                        + (sizeToWrite - out.remaining()));
+                        + out.position());
             }
 
-            // The segment contains the same data as out above
-            final MemorySegment segment = SEGMENT_CACHE.get();
             final long writingOffset = fileOffset % dataBufferSize;
-            MemorySegment.copy(segment, 0, writingWindow.writeBuffer, writingOffset, sizeToWrite);
+            MemorySegment.copy(
+                    MemorySegment.ofArray(out.array()), 0, writingWindow.writeBuffer, writingOffset, sizeToWrite);
         } finally {
             bytesWritten(fileOffset, sizeToWrite);
         }

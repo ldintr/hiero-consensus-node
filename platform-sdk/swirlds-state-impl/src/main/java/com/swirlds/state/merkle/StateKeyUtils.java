@@ -7,7 +7,8 @@ import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
@@ -89,8 +90,8 @@ public class StateKeyUtils {
 
     // K/V key: OneOf field number is K/V state ID, field value is the key
     public static <K> Bytes kvKey(final int stateId, final K key, final Codec<K> keyCodec) {
-        try (final ByteArrayOutputStream bout = new ByteArrayOutputStream()) {
-            final WritableSequentialData out = new WritableStreamingData(bout);
+        try {
+            final SlimWriter out = new SlimWriter();
             // Write tag: field number == state ID, wire type == DELIMITED
             out.writeVarInt(
                     (stateId << ProtoParserTools.TAG_FIELD_OFFSET) | ProtoConstants.WIRE_TYPE_DELIMITED.ordinal(),
@@ -99,7 +100,7 @@ public class StateKeyUtils {
             out.writeVarInt(keyCodec.measureRecord(key), false);
             // Write key
             keyCodec.write(key, out);
-            return Bytes.wrap(bout.toByteArray());
+            return out.takeBytes();
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -107,20 +108,15 @@ public class StateKeyUtils {
 
     // K/V key: OneOf field number is K/V state ID, field value is the key
     public static Bytes kvKey(final int stateId, final Bytes key) {
-        try (final ByteArrayOutputStream bout = new ByteArrayOutputStream()) {
-            final WritableSequentialData out = new WritableStreamingData(bout);
-            // Write tag: field number == state ID, wire type == DELIMITED
-            out.writeVarInt(
-                    (stateId << ProtoParserTools.TAG_FIELD_OFFSET) | ProtoConstants.WIRE_TYPE_DELIMITED.ordinal(),
-                    false);
-            // Write length, varint
-            out.writeVarInt(toIntExact(key.length()), false);
-            // Write key
-            out.writeBytes(key);
-            return Bytes.wrap(bout.toByteArray());
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        final SlimWriter out = new SlimWriter();
+        // Write tag: field number == state ID, wire type == DELIMITED
+        out.writeVarInt(
+                (stateId << ProtoParserTools.TAG_FIELD_OFFSET) | ProtoConstants.WIRE_TYPE_DELIMITED.ordinal(), false);
+        // Write length, varint
+        out.writeVarInt(toIntExact(key.length()), false);
+        // Write key
+        out.writeBytes(key);
+        return out.takeBytes();
     }
 
     /**
@@ -131,7 +127,7 @@ public class StateKeyUtils {
     public static int extractStateIdFromStateKeyOneOf(@NonNull final Bytes stateKey) {
         Objects.requireNonNull(stateKey, "Null state key");
         // Assumption is the key bytes are a OneOf
-        return ProtoParserTools.readNextFieldNumber(stateKey.toReadableSequentialData());
+        return ProtoParserTools.readNextFieldNumber(stateKey.toSlimBuffer());
     }
 
     /**
@@ -145,7 +141,7 @@ public class StateKeyUtils {
             throws ParseException {
         Objects.requireNonNull(stateKey, "Null state key");
         Objects.requireNonNull(keyCodec, "Null key codec");
-        final ReadableSequentialData in = stateKey.toReadableSequentialData();
+        final SlimBuffer in = stateKey.toSlimBuffer();
         final int tag = in.readVarInt(false);
         assert tag >> ProtoParserTools.TAG_FIELD_OFFSET == extractStateIdFromStateKeyOneOf(stateKey);
         assert tag >> ProtoParserTools.TAG_FIELD_OFFSET != FIELD_NUM_SINGLETON; // must not be a singleton key

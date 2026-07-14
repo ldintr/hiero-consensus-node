@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.hiero.consensus.gossip.impl.gossip.sync;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.config.api.Configuration;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
@@ -20,10 +22,22 @@ import org.hiero.consensus.io.counting.CountingOutputStream;
 public class SyncOutputStream extends SerializableDataOutputStream {
 
     private final ByteCounter connectionByteCounter;
+    private final OutputStream wrappedStream;
 
     protected SyncOutputStream(@NonNull final OutputStream out, @NonNull final ByteCounter connectionByteCounter) {
-        super(out);
+        super(new SlimWriter(out));
+        this.wrappedStream = out;
         this.connectionByteCounter = connectionByteCounter;
+    }
+
+    /**
+     * Flushes SlimWriter's internal buffer to the underlying stream, then flushes that stream
+     * (e.g. BufferedOutputStream or DeflaterOutputStream) all the way through to the socket.
+     */
+    @Override
+    public void flush() throws IOException {
+        super.flush();
+        wrappedStream.flush();
     }
 
     /**

@@ -10,6 +10,7 @@ import com.hedera.pbj.runtime.FieldType;
 import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -378,6 +379,13 @@ public sealed class Bucket implements Closeable permits ParsedBucket {
     public void writeTo(final WritableSequentialData out) {
         bucketData.resetPosition();
         out.writeBytes(bucketData);
+    }
+
+    public void writeTo(final SlimWriter out) {
+        bucketData.resetPosition();
+        final byte[] bytes = new byte[(int) bucketData.remaining()];
+        bucketData.readBytes(bytes);
+        out.writeBytes(bytes);
     }
 
     /**

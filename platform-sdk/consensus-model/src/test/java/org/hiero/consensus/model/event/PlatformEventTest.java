@@ -10,9 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.hapi.platform.event.EventConsensusData;
 import com.hedera.hapi.platform.event.GossipEvent;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Random;
@@ -174,7 +174,7 @@ class PlatformEventTest {
     @NonNull
     private static PlatformEvent serializeDeserializePlatformEvent(@NonNull final PlatformEvent original)
             throws IOException {
-        try (final ByteArrayOutputStream io = new ByteArrayOutputStream()) {
+        try (final SlimWriter io = new SlimWriter()) {
             final SerializableDataOutputStream out = new SerializableDataOutputStream(io);
             out.writePbjRecord(original.getGossipEvent(), GossipEvent.PROTOBUF);
             out.flush();

@@ -731,7 +731,7 @@ public final class VirtualMap extends AbstractVirtualRoot implements Labeled, Vi
             return removedValueBytes == null
                     ? null
                     : valueCodec.parse(
-                            removedValueBytes.toReadableSequentialData(),
+                            removedValueBytes.toSlimBuffer(),
                             false,
                             false,
                             DEFAULT_MAX_DEPTH,

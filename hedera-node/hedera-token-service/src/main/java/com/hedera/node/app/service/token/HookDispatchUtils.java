@@ -179,7 +179,7 @@ public class HookDispatchUtils {
         final StreamBuilder.SignedTxCustomizer executionCustomizer = signedTx -> {
             try {
                 final var dispatchedBody = TransactionBody.PROTOBUF.parseStrict(
-                        signedTx.bodyBytes().toReadableSequentialData());
+                        signedTx.bodyBytes().toSlimBuffer());
                 final var hookCall = dispatchedBody
                         .hookDispatchOrThrow()
                         .executionOrThrow()

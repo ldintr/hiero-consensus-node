@@ -14,7 +14,7 @@ import com.hedera.node.config.ConfigProvider;
 import com.hedera.node.config.data.NetworkAdminConfig;
 import com.hedera.node.internal.network.Network;
 import com.hedera.node.internal.network.NodeMetadata;
-import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.State;
@@ -382,11 +382,7 @@ public class DiskStartupNetworks implements StartupNetworks {
         if (Files.exists(path)) {
             try (final var fin = Files.newInputStream(path)) {
                 return Optional.of(Network.JSON.parse(
-                        new ReadableStreamingData(fin),
-                        true,
-                        false,
-                        DEFAULT_MAX_DEPTH,
-                        STARTUP_NETWORK_JSON_MAX_FIELD_SIZE));
+                        new SlimBuffer(fin), true, false, DEFAULT_MAX_DEPTH, STARTUP_NETWORK_JSON_MAX_FIELD_SIZE));
             } catch (Exception e) {
                 log.warn("Failed to load {} network info from {}", path.toAbsolutePath(), e);
             }

@@ -2,6 +2,7 @@
 package com.swirlds.platform.core.jmh;
 
 import com.hedera.hapi.platform.event.GossipEvent;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -61,7 +62,7 @@ public class EventBenchmarks {
                 .build();
         final PipedInputStream inputStream = new PipedInputStream();
         final PipedOutputStream outputStream = new PipedOutputStream(inputStream);
-        outStream = new SerializableDataOutputStream(outputStream);
+        outStream = new SerializableDataOutputStream(new SlimWriter(outputStream));
         inStream = new SerializableDataInputStream(inputStream);
         eventHasher = hasherType.newHasher();
     }

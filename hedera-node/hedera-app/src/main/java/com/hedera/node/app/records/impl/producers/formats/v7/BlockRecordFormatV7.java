@@ -16,6 +16,8 @@ import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
@@ -186,8 +188,8 @@ public final class BlockRecordFormatV7 implements BlockRecordFormat {
 
         @NonNull
         @Override
-        public RecordStreamItemV7 parse(
-                @NonNull final ReadableSequentialData readableSequentialData,
+        public RecordStreamItemV7 realParse(
+                @NonNull final SlimBuffer readableSequentialData,
                 final boolean strictMode,
                 final boolean parseUnknownFields,
                 final int maxDepth,
@@ -205,6 +207,10 @@ public final class BlockRecordFormatV7 implements BlockRecordFormat {
             // TBD
         }
 
+        public void realWrite(@NonNull RecordStreamItemV7 item, @NonNull SlimWriter output) {
+            // TBD
+        }
+
         public int measure(@NonNull ReadableSequentialData input) {
             return 0;
         }
@@ -213,7 +219,7 @@ public final class BlockRecordFormatV7 implements BlockRecordFormat {
             return 0;
         }
 
-        public boolean fastEquals(@NonNull RecordStreamItemV7 item, @NonNull ReadableSequentialData input) {
+        public boolean fastEquals(@NonNull RecordStreamItemV7 item, @NonNull SlimBuffer input) {
             return false;
         }
     }

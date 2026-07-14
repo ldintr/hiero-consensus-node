@@ -154,7 +154,7 @@ public class BlockState {
         }
         // The leading varint is the protobuf tag: (fieldNumber << 3) | wireType. The field number identifies which
         // oneof field is set, which corresponds 1:1 to the BlockItem item type.
-        final int tag = serializedItem.toReadableSequentialData().readVarInt(false);
+        final int tag = serializedItem.toSlimBuffer().readVarInt(false);
         return BlockItem.ItemOneOfType.fromProtobufOrdinal(tag >>> PROTOBUF_TAG_TYPE_BITS);
     }
 

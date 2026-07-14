@@ -14,6 +14,8 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.UnknownField;
 import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -58,8 +60,8 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
      * @return Parsed ConsistencyState model object or null if data input was null or empty
      * @throws ParseException If parsing fails
      */
-    public @NonNull ConsistencyState parse(
-            @NonNull final ReadableSequentialData input,
+    public @NonNull ConsistencyState realParse(
+            @NonNull final SlimBuffer input,
             final boolean strictMode,
             final boolean parseUnknownFields,
             final int maxDepth,
@@ -76,8 +78,8 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
 
             // -- PARSE LOOP ---------------------------------------------
             // Continue to parse bytes out of the input stream until we get to the end.
-            while (input.hasRemaining()) {
-                // Note: ReadableStreamingData.hasRemaining() won't flip to false
+            while (input.hasMore()) {
+                // Note: SlimBuffer.hasMore() won't flip to false
                 // until the end of stream is actually hit with a read operation.
                 // So we catch this exception here and **only** here, because an EOFException
                 // anywhere else suggests that we're processing malformed data and so
@@ -185,6 +187,22 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
         }
     }
 
+    public void realWrite(@NonNull ConsistencyState data, @NonNull SlimWriter out) throws IOException {
+        // [1] - running_checksum
+        writeLong(out, ConsistencyStateSchema.RUNNING_CHECKSUM, data.runningChecksum(), true);
+        // [2] - rounds_handled
+        writeLong(out, ConsistencyStateSchema.ROUNDS_HANDLED, data.roundsHandled(), true);
+
+        // Check if not-empty to avoid creating a lambda if there's nothing to write.
+        if (!data.getUnknownFields().isEmpty()) {
+            data.getUnknownFields().forEach(uf -> {
+                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
+                out.writeVarInt(tag, false);
+                uf.bytes().writeTo(out);
+            });
+        }
+    }
+
     /**
      * Reads from this data input the length of the data within the input. The implementation may
      * read all the data, or just some special serialized data, as needed to find out the length of
@@ -223,8 +241,7 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
      * @return true if the bytes represent the item, false otherwise.
      * @throws ParseException If parsing fails
      */
-    public boolean fastEquals(@NonNull ConsistencyState item, @NonNull final ReadableSequentialData input)
-            throws ParseException {
+    public boolean fastEquals(@NonNull ConsistencyState item, @NonNull final SlimBuffer input) throws ParseException {
         return item.equals(parse(input));
     }
 

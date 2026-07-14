@@ -15,7 +15,8 @@ import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -65,8 +66,8 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
          * @return Parsed StateItem model object
          * @throws ParseException If parsing fails
          */
-        public @NonNull StateItem parse(
-                @NonNull final ReadableSequentialData input,
+        public @NonNull StateItem realParse(
+                @NonNull final SlimBuffer input,
                 final boolean strictMode,
                 final boolean parseUnknownFields,
                 final int maxDepth,
@@ -100,7 +101,7 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
             return new StateItem(keyBytes, valueBytes);
         }
 
-        private static int extractFieldNum(ReadableSequentialData input) throws ParseException {
+        private static int extractFieldNum(SlimBuffer input) throws ParseException {
             final int tag = input.readVarInt(false);
             final int wireType = tag & ProtoConstants.TAG_WIRE_TYPE_MASK;
             if (wireType != ProtoConstants.WIRE_TYPE_DELIMITED.ordinal()) {
@@ -110,8 +111,7 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
             return tag >> ProtoParserTools.TAG_FIELD_OFFSET;
         }
 
-        private static Bytes readBytes(ReadableSequentialData input, FieldDefinition fieldDefinition)
-                throws ParseException {
+        private static Bytes readBytes(SlimBuffer input, FieldDefinition fieldDefinition) throws ParseException {
             final ProtoConstants wireType = ProtoWriterTools.wireType(fieldDefinition);
             if (wireType != ProtoConstants.WIRE_TYPE_DELIMITED) {
                 throw new ParseException("StateItem key wire type mismatch: expected="
@@ -135,7 +135,7 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
          * @param out  The output stream to write to
          * @throws IOException If there is a problem writing
          */
-        public void write(@NonNull StateItem data, @NonNull final WritableSequentialData out) throws IOException {
+        public void realWrite(@NonNull StateItem data, @NonNull final SlimWriter out) throws IOException {
             writeDelimited(out, FIELD_KEY, toIntExact(data.key.length()), v -> v.writeBytes(data.key));
             writeDelimited(out, FIELD_VALUE, toIntExact(data.value.length()), v -> v.writeBytes(data.value));
         }
@@ -143,7 +143,7 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
         /**
          * {@inheritDoc}
          */
-        public int measure(@NonNull final ReadableSequentialData input) throws ParseException {
+        public int measure(@NonNull final SlimBuffer input) throws ParseException {
             final var start = input.position();
             parse(input);
             final var end = input.position();
@@ -176,8 +176,7 @@ public record StateItem(@NonNull Bytes key, @NonNull Bytes value) {
          * {@inheritDoc}
          */
         @Override
-        public boolean fastEquals(@NonNull StateItem item, @NonNull ReadableSequentialData input)
-                throws ParseException {
+        public boolean fastEquals(@NonNull StateItem item, @NonNull SlimBuffer input) throws ParseException {
             return item.equals(parse(input));
         }
 

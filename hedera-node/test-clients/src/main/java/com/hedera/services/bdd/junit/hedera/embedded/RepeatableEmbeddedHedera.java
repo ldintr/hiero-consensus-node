@@ -9,7 +9,7 @@ import static org.hiero.consensus.platformstate.PlatformStateUtils.bulkUpdateOf;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.platform.event.StateSignatureTransaction;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.bdd.junit.hedera.embedded.fakes.AbstractFakePlatform;
 import com.hedera.services.bdd.junit.hedera.embedded.fakes.FakeConsensusEvent;
@@ -104,10 +104,10 @@ public class RepeatableEmbeddedHedera extends AbstractEmbeddedHedera implements 
     public TransactionResponse submit(Transaction transaction, AccountID nodeAccountId, final long eventBirthRound) {
         var response = OK_RESPONSE;
         if (defaultNodeAccountId.equals(nodeAccountId)) {
-            final var responseBuffer = BufferedData.allocate(MAX_PLATFORM_TXN_SIZE);
+            final var responseWriter = new SlimWriter(MAX_PLATFORM_TXN_SIZE);
             final var payload = Bytes.wrap(transaction.toByteArray());
-            hedera.ingestWorkflow().submitTransaction(payload, responseBuffer);
-            response = parseTransactionResponse(responseBuffer);
+            hedera.ingestWorkflow().submitTransaction(payload, responseWriter);
+            response = parseTransactionResponse(responseWriter.toSlimBuffer());
         } else {
             final var nodeId = nodeIds.getOrDefault(nodeAccountId, MISSING_NODE_ID);
             warnOfSkippedIngestChecks(nodeAccountId, nodeId);
@@ -129,10 +129,10 @@ public class RepeatableEmbeddedHedera extends AbstractEmbeddedHedera implements 
         requireNonNull(semanticVersion);
         var response = OK_RESPONSE;
         if (defaultNodeAccountId.equals(nodeAccountId)) {
-            final var responseBuffer = BufferedData.allocate(MAX_PLATFORM_TXN_SIZE);
+            final var responseWriter = new SlimWriter(MAX_PLATFORM_TXN_SIZE);
             final var payload = Bytes.wrap(transaction.toByteArray());
-            hedera.ingestWorkflow().submitTransaction(payload, responseBuffer);
-            response = parseTransactionResponse(responseBuffer);
+            hedera.ingestWorkflow().submitTransaction(payload, responseWriter);
+            response = parseTransactionResponse(responseWriter.toSlimBuffer());
         } else {
             final var nodeId = nodeIds.getOrDefault(nodeAccountId, MISSING_NODE_ID);
             warnOfSkippedIngestChecks(nodeAccountId, nodeId);

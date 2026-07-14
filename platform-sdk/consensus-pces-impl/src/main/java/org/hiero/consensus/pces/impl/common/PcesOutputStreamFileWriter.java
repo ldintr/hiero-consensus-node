@@ -2,6 +2,7 @@
 package org.hiero.consensus.pces.impl.common;
 
 import com.hedera.hapi.platform.event.GossipEvent;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedOutputStream;
 import java.io.FileDescriptor;
@@ -24,6 +25,11 @@ public class PcesOutputStreamFileWriter implements PcesFileWriter {
     private final FileDescriptor fileDescriptor;
     /** Counts the bytes written to the file */
     private final ByteCounter counter;
+    /**
+     * The metered stream wrapping the BufferedOutputStream. SlimWriter.flush() writes into this stream but does not
+     * call flush() on it, so we must flush it explicitly to push data from BufferedOutputStream to the OS before sync.
+     */
+    private final CountingOutputStream meteredStream;
 
     /**
      * Create a new file writer.
@@ -34,10 +40,9 @@ public class PcesOutputStreamFileWriter implements PcesFileWriter {
     public PcesOutputStreamFileWriter(@NonNull final Path filePath) throws IOException {
         final FileOutputStream fileOutputStream = new FileOutputStream(filePath.toFile());
         fileDescriptor = fileOutputStream.getFD();
-        final CountingOutputStream meteredStream =
-                new CountingOutputStream(new BufferedOutputStream(fileOutputStream), CounterType.FAST);
+        meteredStream = new CountingOutputStream(new BufferedOutputStream(fileOutputStream), CounterType.FAST);
         counter = meteredStream.byteCounter();
-        out = new SerializableDataOutputStream(meteredStream);
+        out = new SerializableDataOutputStream(new SlimWriter(meteredStream));
     }
 
     @Override
@@ -53,11 +58,13 @@ public class PcesOutputStreamFileWriter implements PcesFileWriter {
     @Override
     public void flush() throws IOException {
         out.flush();
+        meteredStream.flush();
     }
 
     @Override
     public void sync() throws IOException {
         out.flush();
+        meteredStream.flush();
         try {
             fileDescriptor.sync();
         } catch (final SyncFailedException e) {

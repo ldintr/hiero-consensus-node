@@ -7,7 +7,7 @@ import static org.hiero.consensus.platformstate.PlatformStateUtils.getInfoString
 import static org.hiero.consensus.reconnect.impl.ReconnectStateLearner.endReconnectHandshake;
 
 import com.hedera.hapi.node.state.roster.Roster;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.logging.legacy.payload.ReconnectFinishPayload;
 import com.swirlds.logging.legacy.payload.ReconnectStartPayload;
@@ -233,8 +233,9 @@ public class ReconnectStateTeacher {
                 .append(hash);
 
         logger.info(RECONNECT.getMarker(), sb);
-        final WritableStreamingData wsd = new WritableStreamingData(connection.getDos());
-        signatures.serialize(wsd);
+        SlimWriter writer = new SlimWriter(connection.getDos());
+        signatures.serialize(writer);
+        writer.flush();
         connection.getDos().flush();
     }
 }

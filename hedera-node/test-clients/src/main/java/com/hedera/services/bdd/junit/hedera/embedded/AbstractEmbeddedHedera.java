@@ -12,6 +12,7 @@ import static org.hiero.consensus.model.status.PlatformStatus.ACTIVE;
 import static org.hiero.consensus.model.status.PlatformStatus.FREEZE_COMPLETE;
 import static org.hiero.consensus.roster.RosterUtils.rosterFrom;
 
+import com.google.protobuf.CodedInputStream;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.state.roster.Roster;
 import com.hedera.node.app.Hedera;
@@ -24,7 +25,8 @@ import com.hedera.node.app.history.impl.HistoryServiceImpl;
 import com.hedera.node.app.info.DiskStartupNetworks;
 import com.hedera.node.app.tss.DualBlockHashSigner;
 import com.hedera.node.internal.network.Network;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.bdd.junit.hedera.embedded.fakes.AbstractFakePlatform;
 import com.hedera.services.bdd.junit.hedera.embedded.fakes.FakeHintsService;
@@ -223,13 +225,13 @@ public abstract class AbstractEmbeddedHedera implements EmbeddedHedera {
             // It's possible this was intentional, but make a little noise to remind test author this happens
             log.warn("All paid queries get INVALID_NODE_ACCOUNT for non-default nodes in embedded mode");
         }
-        final var responseBuffer = BufferedData.allocate(MAX_QUERY_RESPONSE_SIZE);
+        final var responseBuffer = new SlimWriter(MAX_QUERY_RESPONSE_SIZE);
         if (asNodeOperator) {
             hedera.operatorQueryWorkflow().handleQuery(Bytes.wrap(query.toByteArray()), responseBuffer);
         } else {
             hedera.queryWorkflow().handleQuery(Bytes.wrap(query.toByteArray()), responseBuffer);
         }
-        return parseQueryResponse(responseBuffer);
+        return parseResponse(responseBuffer.toSlimBuffer());
     }
 
     /**
@@ -312,22 +314,6 @@ public abstract class AbstractEmbeddedHedera implements EmbeddedHedera {
                 .toByteArray();
     }
 
-    protected static TransactionResponse parseTransactionResponse(@NonNull final BufferedData responseBuffer) {
-        try {
-            return TransactionResponse.parseFrom(AbstractEmbeddedHedera.usedBytesFrom(responseBuffer));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    protected static Response parseQueryResponse(@NonNull final BufferedData responseBuffer) {
-        try {
-            return Response.parseFrom(AbstractEmbeddedHedera.usedBytesFrom(responseBuffer));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     protected static void warnOfSkippedIngestChecks(
             @NonNull final AccountID nodeAccountId, @NonNull final NodeId nodeId) {
         requireNonNull(nodeAccountId);
@@ -345,10 +331,19 @@ public abstract class AbstractEmbeddedHedera implements EmbeddedHedera {
         return query.hasCryptogetAccountBalance() || query.hasTransactionGetReceipt();
     }
 
-    private static byte[] usedBytesFrom(@NonNull final BufferedData responseBuffer) {
-        final byte[] bytes = new byte[Math.toIntExact(responseBuffer.position())];
-        responseBuffer.resetPosition();
-        responseBuffer.readBytes(bytes);
-        return bytes;
+    private static Response parseResponse(@NonNull final SlimBuffer buffer) {
+        try {
+            return Response.parseFrom(CodedInputStream.newInstance(buffer.array(), 0, (int) buffer.limit()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    protected static TransactionResponse parseTransactionResponse(@NonNull final SlimBuffer buffer) {
+        try {
+            return TransactionResponse.parseFrom(CodedInputStream.newInstance(buffer.array(), 0, (int) buffer.limit()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

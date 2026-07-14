@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.hiero.base.utility.test.fixtures.io;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,7 +23,7 @@ public class InputOutputStream implements AutoCloseable {
      */
     public InputOutputStream() {
         outByteStream = new ByteArrayOutputStream();
-        outStream = new SerializableDataOutputStream(outByteStream);
+        outStream = new SerializableDataOutputStream(new SlimWriter(outByteStream));
     }
 
     public SerializableDataOutputStream getOutput() {
@@ -42,7 +43,7 @@ public class InputOutputStream implements AutoCloseable {
      * 		if true then enable stream debugging
      */
     public void startReading(final boolean printBytes, final boolean debug) throws IOException {
-        outByteStream.flush();
+        outStream.flush();
         byte[] bytes = outByteStream.toByteArray();
         if (printBytes) {
             System.out.println(Arrays.toString(bytes));

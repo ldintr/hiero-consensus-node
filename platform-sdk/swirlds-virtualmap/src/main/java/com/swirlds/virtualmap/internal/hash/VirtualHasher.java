@@ -6,7 +6,7 @@ import static com.swirlds.virtualmap.internal.Path.INVALID_PATH;
 import static com.swirlds.virtualmap.internal.Path.ROOT_PATH;
 import static java.util.Objects.requireNonNull;
 
-import com.hedera.pbj.runtime.hashing.WritableMessageDigest;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.virtualmap.VirtualMap;
 import com.swirlds.virtualmap.config.VirtualMapConfig;
 import com.swirlds.virtualmap.datasource.VirtualHashChunk;
@@ -31,6 +31,7 @@ import org.hiero.base.concurrent.AbstractTask;
 import org.hiero.base.concurrent.ExecutorFactory;
 import org.hiero.base.crypto.Cryptography;
 import org.hiero.base.crypto.Hash;
+import org.hiero.base.crypto.HashingOutputStream;
 
 /**
  * Responsible for hashing virtual merkle trees. This class is designed to work both for normal
@@ -49,11 +50,23 @@ public final class VirtualHasher {
 
     private final ForkJoinPool hashingPool;
 
+    private record SlimDigest(SlimWriter writer, MessageDigest digest) {}
+
     /**
-     * This thread-local gets a message digest that can be used for hashing on a per-thread basis.
+     * Per-thread digest for internal-node hashing. Bytes are fed directly without buffering
+     * since each hashInternal call writes a fixed ~97 bytes.
      */
-    private static final ThreadLocal<WritableMessageDigest> MESSAGE_DIGEST_THREAD_LOCAL =
-            ThreadLocal.withInitial(() -> new WritableMessageDigest(Cryptography.DEFAULT_DIGEST_TYPE.buildDigest()));
+    private static final ThreadLocal<MessageDigest> INTERNAL_DIGEST_THREAD_LOCAL =
+            ThreadLocal.withInitial(Cryptography.DEFAULT_DIGEST_TYPE::buildDigest);
+
+    /**
+     * Per-thread SlimWriter+digest pair for leaf hashing, where the codec makes many small
+     * writes that benefit from the SlimWriter's internal buffer.
+     */
+    private static final ThreadLocal<SlimDigest> LEAF_DIGEST_THREAD_LOCAL = ThreadLocal.withInitial(() -> {
+        final MessageDigest digest = Cryptography.DEFAULT_DIGEST_TYPE.buildDigest();
+        return new SlimDigest(new SlimWriter(new HashingOutputStream(digest)), digest);
+    });
 
     /**
      * Pre-loads virtual hash chunks by chunk paths.
@@ -107,21 +120,21 @@ public final class VirtualHasher {
      * hash for a tree with only one leaf node.
      */
     public static byte[] hashInternal(@NonNull final byte[] left, @Nullable final byte[] right) {
-        return hashInternal(left, right, MESSAGE_DIGEST_THREAD_LOCAL.get());
+        return hashInternal(left, right, INTERNAL_DIGEST_THREAD_LOCAL.get());
     }
 
-    private static byte[] hashInternal(final byte[] left, final byte[] right, final WritableMessageDigest wmd) {
+    private static byte[] hashInternal(final byte[] left, final byte[] right, final MessageDigest digest) {
         // Unique value to make sure internal node hashes are different from leaf hashes. This
         // value indicates the number of child nodes. All internal virtual nodes have 2 children
         // except a root node in a tree with just one element / leaf. In this and only this case,
         // the right hash will be set to a marker NO_PATH2_HASH hash object
-        wmd.writeByte(right == null ? (byte) 0x01 : (byte) 0x02);
-        wmd.writeBytes(left);
+        digest.update(right == null ? (byte) 0x01 : (byte) 0x02);
+        digest.update(left);
         if (right != null) {
-            wmd.writeBytes(right);
+            digest.update(right);
         }
         // Note that the digest is reset after the call to digest()
-        return wmd.digest();
+        return digest.digest();
     }
 
     // A task that can supply hashes to other tasks. There are two hash producer task
@@ -263,7 +276,7 @@ public final class VirtualHasher {
             final int chunkLastRank = chunkRank + hashChunk.height();
             long rankPath = Path.getLeftGrandChildPath(path, height);
             int currentRank = taskRank + height;
-            final WritableMessageDigest wmd = MESSAGE_DIGEST_THREAD_LOCAL.get();
+            final MessageDigest digest = INTERNAL_DIGEST_THREAD_LOCAL.get();
             while (len > 1) {
                 for (int i = 0; i < len / 2; i++) {
                     byte[] left = ins[i * 2];
@@ -309,7 +322,7 @@ public final class VirtualHasher {
                         }
                     }
 
-                    ins[i] = hashInternal(left, right, wmd);
+                    ins[i] = hashInternal(left, right, digest);
                 }
                 rankPath = Path.getParentPath(rankPath);
                 currentRank--;
@@ -348,9 +361,10 @@ public final class VirtualHasher {
 
         @Override
         protected boolean onExecute() {
-            final WritableMessageDigest wmd = MESSAGE_DIGEST_THREAD_LOCAL.get();
-            leaf.writeToForHashing(wmd);
-            final byte[] hash = wmd.digest();
+            final SlimDigest sd = LEAF_DIGEST_THREAD_LOCAL.get();
+            leaf.writeToForHashing(sd.writer());
+            sd.writer().flush();
+            final byte[] hash = sd.digest().digest();
             out.setHash(path, hash);
             return true;
         }
@@ -677,9 +691,10 @@ public final class VirtualHasher {
      * @return the computed hash
      */
     public static Hash hashLeafRecord(final VirtualLeafBytes<?> leaf) {
-        final WritableMessageDigest wmd = MESSAGE_DIGEST_THREAD_LOCAL.get();
-        leaf.writeToForHashing(wmd);
+        SlimDigest sd = LEAF_DIGEST_THREAD_LOCAL.get();
+        leaf.writeToForHashing(sd.writer());
+        sd.writer().flush();
         // Calling digest() resets the digest
-        return new Hash(wmd.digest(), Cryptography.DEFAULT_DIGEST_TYPE);
+        return new Hash(sd.digest().digest(), Cryptography.DEFAULT_DIGEST_TYPE);
     }
 }

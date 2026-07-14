@@ -39,7 +39,7 @@ import com.hedera.node.config.VersionedConfigImpl;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.testfixtures.HederaTestConfigBuilder;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.common.utility.AutoCloseableWrapper;
 import com.swirlds.state.State;
@@ -72,7 +72,7 @@ class IngestWorkflowImplTest extends AppTestBase {
     private Bytes requestBuffer;
 
     /** The buffer to write responses into. */
-    private final BufferedData responseBuffer = BufferedData.allocate(1024 * 6);
+    private SlimWriter responseBuffer;
 
     /** The request transaction */
     private SignedTransaction signedTx;
@@ -103,6 +103,7 @@ class IngestWorkflowImplTest extends AppTestBase {
 
     @BeforeEach
     void setup() throws PreCheckException {
+        responseBuffer = new SlimWriter(6 << 10);
         // The request buffer, with basically random bytes
         requestBuffer = randomBytes(10);
         transactionBody = TransactionBody.newBuilder()
@@ -350,8 +351,7 @@ class IngestWorkflowImplTest extends AppTestBase {
         }
     }
 
-    private static TransactionResponse parseResponse(@NonNull final BufferedData responseBuffer) throws ParseException {
-        responseBuffer.flip();
-        return TransactionResponse.PROTOBUF.parse(responseBuffer);
+    private static TransactionResponse parseResponse(@NonNull final SlimWriter responseBuffer) throws ParseException {
+        return TransactionResponse.PROTOBUF.parse(responseBuffer.toSlimBuffer());
     }
 }

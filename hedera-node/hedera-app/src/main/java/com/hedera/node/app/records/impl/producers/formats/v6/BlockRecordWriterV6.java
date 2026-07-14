@@ -27,8 +27,8 @@ import com.hedera.node.app.records.impl.producers.BlockRecordWriter;
 import com.hedera.node.app.records.impl.producers.SerializedSingleTransactionRecord;
 import com.hedera.node.config.data.BlockRecordStreamConfig;
 import com.hedera.pbj.runtime.ProtoWriterTools;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -124,7 +124,7 @@ public final class BlockRecordWriterV6 implements BlockRecordWriter {
     /** The buffered output stream we are writing to, wraps {@link #hashingOutputStream} */
     private BufferedOutputStream bufferedOutputStream;
     /** WritableStreamingData we are writing to, wraps {@link #bufferedOutputStream} */
-    private WritableStreamingData outputStream;
+    private SlimWriter outputStream;
     /** The state of this writer */
     private State state;
 
@@ -210,7 +210,7 @@ public final class BlockRecordWriterV6 implements BlockRecordWriter {
             gzipOutputStream = new GZIPOutputStream(fileOutputStream);
             hashingOutputStream = new HashingOutputStream(createWholeFileMessageDigest(), gzipOutputStream);
             bufferedOutputStream = new BufferedOutputStream(hashingOutputStream);
-            outputStream = new WritableStreamingData(bufferedOutputStream);
+            outputStream = new SlimWriter(bufferedOutputStream);
 
             // Write the header
             writeHeader(hapiProtoVersion);

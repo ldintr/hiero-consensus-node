@@ -3,6 +3,7 @@ package com.hedera.node.app.grpc.impl;
 
 import static java.util.Objects.requireNonNull;
 
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.metrics.api.Counter;
@@ -46,8 +47,8 @@ public abstract class MethodBase implements ServerCalls.UnaryMethod<BufferedData
             "java:S5164") // looks like a false positive ("ThreadLocal" variables should be cleaned up when no longer
     // used), but these threads are long-lived and the lifetime of the thread local is the same as
     // the application
-    private static final ThreadLocal<BufferedData> BUFFER_THREAD_LOCAL =
-            ThreadLocal.withInitial(() -> BufferedData.allocate(MAX_RESPONSE_SIZE));
+    private static final ThreadLocal<SlimWriter> WRITER_THREAD_LOCAL =
+            ThreadLocal.withInitial(() -> new SlimWriter(MAX_RESPONSE_SIZE));
 
     /** The name of the service associated with this method. */
     protected final String serviceName;
@@ -113,19 +114,19 @@ public abstract class MethodBase implements ServerCalls.UnaryMethod<BufferedData
         }
 
         try {
-            // Prepare the response buffer
-            final var responseBuffer = BUFFER_THREAD_LOCAL.get();
-            responseBuffer.reset();
+            // Prepare the response writer
+            final var responseWriter = WRITER_THREAD_LOCAL.get();
+            responseWriter.reset();
 
             // Convert the request BufferedData to a Bytes instance without copying the bytes
             final var requestBytes = requestBuffer.getBytes(0, requestBuffer.length());
 
             // Call the workflow
-            handle(requestBytes, responseBuffer);
+            handle(requestBytes, responseWriter);
 
             // Respond to the client
-            responseBuffer.flip();
-            responseObserver.onNext(responseBuffer);
+            final var slimBuffer = responseWriter.toSlimBuffer();
+            responseObserver.onNext(BufferedData.wrap(slimBuffer.array(), 0, (int) slimBuffer.limit()));
             responseObserver.onCompleted();
 
             // Track the number of times we successfully handled a call
@@ -148,7 +149,7 @@ public abstract class MethodBase implements ServerCalls.UnaryMethod<BufferedData
      * @param requestBuffer The {@link Bytes} containing the protobuf bytes for the request
      * @param responseBuffer A {@link BufferedData} into which the response protobuf bytes may be written
      */
-    protected abstract void handle(@NonNull final Bytes requestBuffer, @NonNull final BufferedData responseBuffer);
+    protected abstract void handle(@NonNull final Bytes requestBuffer, @NonNull final SlimWriter responseBuffer);
 
     /**
      * Helper method for creating a {@link Counter} metric.

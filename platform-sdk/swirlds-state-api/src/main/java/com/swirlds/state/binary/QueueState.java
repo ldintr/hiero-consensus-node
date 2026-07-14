@@ -8,8 +8,8 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.ProtoConstants;
 import com.hedera.pbj.runtime.ProtoParserTools;
 import com.hedera.pbj.runtime.ProtoWriterTools;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.swirlds.state.spi.ReadableQueueState;
 import com.swirlds.state.spi.WritableQueueState;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -96,8 +96,7 @@ public record QueueState(long head, long tail) {
         }
 
         @Override
-        public void write(@NonNull final QueueState value, @NonNull final WritableSequentialData out)
-                throws IOException {
+        public void realWrite(@NonNull final QueueState value, @NonNull final SlimWriter out) throws IOException {
             final long pos = out.position();
             if (value.head() != 0) {
                 ProtoWriterTools.writeTag(out, FIELD_QUEUESTATE_HEAD);
@@ -112,8 +111,8 @@ public record QueueState(long head, long tail) {
 
         @NonNull
         @Override
-        public QueueState parse(
-                @NonNull final ReadableSequentialData in,
+        public QueueState realParse(
+                @NonNull final SlimBuffer in,
                 final boolean strictMode,
                 final boolean parseUnknownFields,
                 final int maxDepth,
@@ -122,7 +121,7 @@ public record QueueState(long head, long tail) {
             long head = 0;
             long tail = 0;
 
-            while (in.hasRemaining()) {
+            while (in.hasMore()) {
                 final int tag = in.readVarInt(false);
                 final int fieldNum = tag >> ProtoParserTools.TAG_FIELD_OFFSET;
                 final int wireType = tag & ProtoConstants.TAG_WIRE_TYPE_MASK;
@@ -147,13 +146,12 @@ public record QueueState(long head, long tail) {
         }
 
         @Override
-        public boolean fastEquals(@NonNull final QueueState value, @NonNull final ReadableSequentialData in)
-                throws ParseException {
+        public boolean fastEquals(@NonNull final QueueState value, @NonNull final SlimBuffer in) throws ParseException {
             return value.equals(parse(in));
         }
 
         @Override
-        public int measure(@NonNull final ReadableSequentialData in) throws ParseException {
+        public int measure(@NonNull final SlimBuffer in) throws ParseException {
             final long pos = in.position();
             parse(in);
             return (int) (in.position() - pos);

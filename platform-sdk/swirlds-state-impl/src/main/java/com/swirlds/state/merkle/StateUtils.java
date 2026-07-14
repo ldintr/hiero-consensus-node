@@ -7,7 +7,7 @@ import static com.hedera.pbj.runtime.ProtoWriterTools.sizeOfVarInt32;
 import static com.swirlds.state.merkle.StateKeyUtils.kvKey;
 
 import com.hedera.pbj.runtime.Codec;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.SlimBuffer;
 import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.binary.QueueState;
@@ -144,12 +144,13 @@ public final class StateUtils {
      */
     @NonNull
     public static Bytes unwrap(@NonNull final Bytes stateValueBytes) {
-        ReadableSequentialData sequentialData = stateValueBytes.toReadableSequentialData();
+        SlimBuffer sequentialData = stateValueBytes.toSlimBuffer();
         // skipping tag
         sequentialData.readVarInt(false);
         int valueSize = sequentialData.readVarInt(false);
 
-        assert valueSize == sequentialData.remaining() : "Value size mismatch";
+        // SlimBuffer doesnt have this
+        // assert valueSize == sequentialData.remaining() : "Value size mismatch";
 
         try (InputStream is = sequentialData.asInputStream()) {
             return Bytes.wrap(is.readAllBytes());

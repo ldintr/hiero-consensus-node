@@ -10,10 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.SlimWriter;
 import com.hedera.pbj.runtime.io.stream.ReadableStreamingData;
-import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,12 +93,11 @@ class SigSetTests {
             sigSet.addSignature(node, signatures.get(node));
         }
 
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (final WritableStreamingData out = new WritableStreamingData(baos)) {
+        final byte[] serializedBytes;
+        try (final SlimWriter out = new SlimWriter()) {
             sigSet.serialize(out);
+            serializedBytes = out.toByteArray();
         }
-
-        final byte[] serializedBytes = baos.toByteArray();
         final ByteArrayInputStream bais = new ByteArrayInputStream(serializedBytes);
         try (final ReadableStreamingData in = new ReadableStreamingData(bais)) {
             final SigSet deserialized = new SigSet();
