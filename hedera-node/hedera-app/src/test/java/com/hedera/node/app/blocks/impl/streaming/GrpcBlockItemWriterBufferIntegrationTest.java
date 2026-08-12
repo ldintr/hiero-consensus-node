@@ -16,7 +16,6 @@ import com.hedera.node.config.VersionedConfigImpl;
 import com.hedera.node.config.data.BlockBufferConfig;
 import com.hedera.node.config.data.BlockStreamConfig;
 import com.hedera.node.config.testfixtures.HederaTestConfigBuilder;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.config.api.Configuration;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -117,7 +116,7 @@ class GrpcBlockItemWriterBufferIntegrationTest {
         try (final var in = new GZIPInputStream(Files.newInputStream(dir.resolve(baseName + ".open.gz")))) {
             contents = in.readAllBytes();
         }
-        final var parsed = Block.PROTOBUF.parse(Bytes.wrap(contents));
+        final var parsed = Block.PROTOBUF.parse(contents);
         assertThat(parsed.items()).hasSize(1);
         assertThat(parsed.items().getFirst().blockHeader().number()).isEqualTo(blockNumber);
     }

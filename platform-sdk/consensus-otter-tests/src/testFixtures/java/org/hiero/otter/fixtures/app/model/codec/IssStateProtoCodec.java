@@ -16,7 +16,6 @@ import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.PbjReader;
 import com.hedera.pbj.runtime.io.PbjWriter;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -47,7 +46,7 @@ public final class IssStateProtoCodec implements Codec<IssState> {
     }
 
     @Override
-    public @NonNull IssState realParse(
+    public @NonNull IssState parse(
             @NonNull final PbjReader input, boolean strictMode, boolean parseUnknownFields, int maxDepth, int maxSize)
             throws ParseException {
         return parse(input, strictMode, parseUnknownFields, maxDepth);
@@ -172,21 +171,7 @@ public final class IssStateProtoCodec implements Codec<IssState> {
      * @param out The output stream to write to
      * @throws IOException If there is a problem writing
      */
-    public void write(@NonNull IssState data, @NonNull final WritableSequentialData out) throws IOException {
-        // [1] - issState
-        writeLong(out, IssStateSchema.ISS_STATE, data.issState(), true);
-
-        // Check if not-empty to avoid creating a lambda if there's nothing to write.
-        if (!data.getUnknownFields().isEmpty()) {
-            data.getUnknownFields().forEach(uf -> {
-                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
-                out.writeVarInt(tag, false);
-                uf.bytes().writeTo(out);
-            });
-        }
-    }
-
-    public void realWrite(@NonNull IssState data, @NonNull PbjWriter out) {
+    public void write(@NonNull IssState data, @NonNull PbjWriter out) {
         // [1] - issState
         writeLong(out, IssStateSchema.ISS_STATE, data.issState(), true);
 

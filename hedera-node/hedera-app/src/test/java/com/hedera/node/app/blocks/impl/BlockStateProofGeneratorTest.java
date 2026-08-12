@@ -445,7 +445,7 @@ class BlockStateProofGeneratorTest {
                         .sorted(Comparator.comparing(Path::toString))
                         .map(p -> {
                             try {
-                                return PendingProof.JSON.parse(Bytes.wrap(Files.readAllBytes(p)));
+                                return PendingProof.JSON.parse(Files.readAllBytes(p));
                             } catch (IOException | ParseException e) {
                                 throw new IllegalStateException("Unable to parse pending proof bytes from " + p, e);
                             }
@@ -469,7 +469,7 @@ class BlockStateProofGeneratorTest {
                                     Long.parseLong(p.getFileName().toString().split("\\.")[0]);
 
                             try {
-                                return Pair.of(proofNum, StateProof.JSON.parse(Bytes.wrap(Files.readAllBytes(p))));
+                                return Pair.of(proofNum, StateProof.JSON.parse(Files.readAllBytes(p)));
                             } catch (IOException | ParseException e) {
                                 throw new IllegalStateException("Unable to parse state proof bytes from " + p, e);
                             }

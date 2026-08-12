@@ -261,11 +261,7 @@ public class SortedJsonExporter {
         try {
             stateKey = StateKey.PROTOBUF.parse(keyBytes);
             stateValue = StateValue.PROTOBUF.parse(
-                    valueBytes.toReadableSequentialData(),
-                    false,
-                    false,
-                    Codec.DEFAULT_MAX_DEPTH,
-                    getVirtualMapValueParseMaxSizeBytes());
+                    valueBytes, false, false, Codec.DEFAULT_MAX_DEPTH, getVirtualMapValueParseMaxSizeBytes());
         } catch (final ParseException e) {
             throw new RuntimeException(e);
         }

@@ -122,13 +122,9 @@ public class BlockStreamEventBuilder {
     public static TransactionBody getTransactionBody(@NonNull final Bytes transactionBytes) {
         try {
             final SignedTransaction signedTransaction = SignedTransaction.PROTOBUF.parse(
-                    transactionBytes.toReadableSequentialData(), false, false, DEFAULT_MAX_DEPTH, MAX_PBJ_RECORD_SIZE);
+                    transactionBytes, false, false, DEFAULT_MAX_DEPTH, MAX_PBJ_RECORD_SIZE);
             return TransactionBody.PROTOBUF.parse(
-                    signedTransaction.bodyBytes().toReadableSequentialData(),
-                    false,
-                    false,
-                    DEFAULT_MAX_DEPTH,
-                    MAX_PBJ_RECORD_SIZE);
+                    signedTransaction.bodyBytes(), false, false, DEFAULT_MAX_DEPTH, MAX_PBJ_RECORD_SIZE);
         } catch (final ParseException e) {
             throw new RuntimeException("Unable to parse transaction bytes", e);
         }

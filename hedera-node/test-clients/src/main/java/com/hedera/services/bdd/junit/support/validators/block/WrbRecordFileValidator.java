@@ -54,7 +54,7 @@ public class WrbRecordFileValidator implements BlockStreamValidator {
         for (final var diskFile : data.files()) {
             final long blockNum = diskFile.getBlockNumber();
             try {
-                final var pbjRsf = RecordStreamFile.PROTOBUF.parse(Bytes.wrap(diskFile.toByteArray()));
+                final var pbjRsf = RecordStreamFile.PROTOBUF.parse(diskFile.toByteArray());
                 diskRecordFileByBlockNumber.put(blockNum, RecordStreamFile.PROTOBUF.toBytes(pbjRsf));
             } catch (final Exception e) {
                 log.warn("Failed to normalize disk record file for block {}; skipping", blockNum, e);
@@ -67,7 +67,7 @@ public class WrbRecordFileValidator implements BlockStreamValidator {
             final List<Bytes> normalizedSidecars = record.sidecarFiles().stream()
                     .map(diskSidecar -> {
                         try {
-                            final var pbjSidecar = SidecarFile.PROTOBUF.parse(Bytes.wrap(diskSidecar.toByteArray()));
+                            final var pbjSidecar = SidecarFile.PROTOBUF.parse(diskSidecar.toByteArray());
                             return SidecarFile.PROTOBUF.toBytes(pbjSidecar);
                         } catch (final Exception e) {
                             log.warn("Failed to normalize disk sidecar for block {}; using empty bytes", blockNum, e);

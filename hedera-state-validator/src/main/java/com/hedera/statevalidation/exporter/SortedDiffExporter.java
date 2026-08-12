@@ -7,7 +7,7 @@ import static com.hedera.statevalidation.exporter.SortedJsonExporter.keyComparat
 import static com.hedera.statevalidation.exporter.SortedJsonExporter.writeEntry;
 import static com.hedera.statevalidation.util.ConfigUtils.MAX_OBJ_PER_FILE;
 
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
+import com.hedera.pbj.runtime.io.PbjReader;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.statevalidation.util.ParallelProcessingUtils;
 import com.hedera.statevalidation.util.StateUtils;
@@ -320,7 +320,7 @@ public class SortedDiffExporter {
 
     /** Resolves the effective stateId, unwrapping the singleton field to its inner id (mirrors collectKeys). */
     private static int resolveStateId(@NonNull final Bytes keyBytes) {
-        final ReadableSequentialData keyData = keyBytes.toReadableSequentialData();
+        final PbjReader keyData = keyBytes.toPbjReader();
         final int tag = keyData.readVarInt(false);
         final int stateId = tag >> TAG_FIELD_OFFSET;
         if (stateId == 1) { // singleton wrapper; real id is the next varint

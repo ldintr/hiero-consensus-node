@@ -225,11 +225,7 @@ public class DiffExporter {
      */
     private String valueJson(@NonNull final Bytes valueBytes) throws Exception {
         final StateValue stateValue = StateValue.PROTOBUF.parse(
-                valueBytes.toReadableSequentialData(),
-                false,
-                false,
-                Codec.DEFAULT_MAX_DEPTH,
-                getVirtualMapValueParseMaxSizeBytes());
+                valueBytes, false, false, Codec.DEFAULT_MAX_DEPTH, getVirtualMapValueParseMaxSizeBytes());
         return StateUtils.valueToJson(stateValue.value());
     }
 

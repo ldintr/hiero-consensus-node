@@ -16,7 +16,6 @@ import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.PbjReader;
 import com.hedera.pbj.runtime.io.PbjWriter;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -60,7 +59,7 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
      * @return Parsed ConsistencyState model object or null if data input was null or empty
      * @throws ParseException If parsing fails
      */
-    public @NonNull ConsistencyState realParse(
+    public @NonNull ConsistencyState parse(
             @NonNull final PbjReader input,
             final boolean strictMode,
             final boolean parseUnknownFields,
@@ -171,23 +170,7 @@ public final class ConsistencyStateProtoCodec implements Codec<ConsistencyState>
      * @param out The output stream to write to
      * @throws IOException If there is a problem writing
      */
-    public void write(@NonNull ConsistencyState data, @NonNull final WritableSequentialData out) throws IOException {
-        // [1] - running_checksum
-        writeLong(out, ConsistencyStateSchema.RUNNING_CHECKSUM, data.runningChecksum(), true);
-        // [2] - rounds_handled
-        writeLong(out, ConsistencyStateSchema.ROUNDS_HANDLED, data.roundsHandled(), true);
-
-        // Check if not-empty to avoid creating a lambda if there's nothing to write.
-        if (!data.getUnknownFields().isEmpty()) {
-            data.getUnknownFields().forEach(uf -> {
-                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
-                out.writeVarInt(tag, false);
-                uf.bytes().writeTo(out);
-            });
-        }
-    }
-
-    public void realWrite(@NonNull ConsistencyState data, @NonNull PbjWriter out) {
+    public void write(@NonNull ConsistencyState data, @NonNull PbjWriter out) {
         // [1] - running_checksum
         writeLong(out, ConsistencyStateSchema.RUNNING_CHECKSUM, data.runningChecksum(), true);
         // [2] - rounds_handled

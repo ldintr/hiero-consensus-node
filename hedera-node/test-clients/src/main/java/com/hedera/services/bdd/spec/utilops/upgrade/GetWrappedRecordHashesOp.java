@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 import com.hedera.hapi.block.internal.WrappedRecordFileBlockHashes;
 import com.hedera.hapi.block.internal.WrappedRecordFileBlockHashesLog;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.bdd.spec.HapiSpec;
 import com.hedera.services.bdd.spec.utilops.UtilOp;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -85,9 +84,8 @@ public class GetWrappedRecordHashesOp extends UtilOp {
             if (allBytes.length == 0) {
                 return List.of();
             }
-            return List.copyOf(WrappedRecordFileBlockHashesLog.PROTOBUF
-                    .parse(Bytes.wrap(allBytes))
-                    .entries());
+            return List.copyOf(
+                    WrappedRecordFileBlockHashesLog.PROTOBUF.parse(allBytes).entries());
         } catch (final ParseException e) {
             throw new IllegalStateException("Unable to parse wrapped record hashes file " + file, e);
         } catch (final IOException e) {

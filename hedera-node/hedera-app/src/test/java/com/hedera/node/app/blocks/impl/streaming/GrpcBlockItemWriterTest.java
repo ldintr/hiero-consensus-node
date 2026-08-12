@@ -173,7 +173,7 @@ class GrpcBlockItemWriterTest {
         try (final var in = new GZIPInputStream(Files.newInputStream(nodeDir.resolve(baseName + ".pnd.gz")))) {
             contents = in.readAllBytes();
         }
-        final Block parsedBlock = Block.PROTOBUF.parse(Bytes.wrap(contents));
+        final Block parsedBlock = Block.PROTOBUF.parse(contents);
         assertThat(parsedBlock.items()).hasSize(1);
         assertThat(parsedBlock.items().getFirst().blockHeader().number()).isEqualTo(blockNumber);
     }
@@ -215,7 +215,7 @@ class GrpcBlockItemWriterTest {
         try (final var in = new GZIPInputStream(Files.newInputStream(nodeDir.resolve(baseName + ".open.gz")))) {
             contents = in.readAllBytes();
         }
-        final Block parsedBlock = Block.PROTOBUF.parse(Bytes.wrap(contents));
+        final Block parsedBlock = Block.PROTOBUF.parse(contents);
         assertThat(parsedBlock.items()).hasSize(1);
         assertThat(parsedBlock.items().getFirst().blockHeader().number()).isEqualTo(blockNumber);
     }

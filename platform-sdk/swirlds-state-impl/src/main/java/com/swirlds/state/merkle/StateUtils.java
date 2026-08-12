@@ -12,9 +12,6 @@ import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.binary.QueueState;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 
 /** Utility class for working with states. */
 public final class StateUtils {
@@ -149,12 +146,10 @@ public final class StateUtils {
         sequentialData.readVarInt(false);
         int valueSize = sequentialData.readVarInt(false);
 
-        assert valueSize == sequentialData.limit() - sequentialData.position() : "Value size mismatch";
-
-        try (InputStream is = sequentialData.asInputStream()) {
-            return Bytes.wrap(is.readAllBytes());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        int remainingLength = (int) (sequentialData.limit() - sequentialData.position());
+        Bytes res = sequentialData.readBytes(remainingLength);
+        assert valueSize == remainingLength : "Value size mismatch";
+        assert res.length() == remainingLength : "Array length mismatch";
+        return res;
     }
 }

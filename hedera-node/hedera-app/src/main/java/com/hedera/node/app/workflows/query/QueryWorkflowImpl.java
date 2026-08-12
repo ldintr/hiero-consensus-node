@@ -333,7 +333,13 @@ public final class QueryWorkflowImpl implements QueryWorkflow {
         }
 
         Response.PROTOBUF.write(response, responseBuffer);
-        logger.debug("Finished handling a query request in Query workflow");
+        if (responseBuffer.error() > 0) {
+            RuntimeException e = responseBuffer.getCause();
+            logger.warn("Unexpected IO exception while writing protobuf", e);
+            throw new StatusRuntimeException(Status.INTERNAL);
+        } else {
+            logger.debug("Finished handling a query request in Query workflow");
+        }
 
         workflowMetrics.updateDuration(function, (int) (System.nanoTime() - queryStart));
     }

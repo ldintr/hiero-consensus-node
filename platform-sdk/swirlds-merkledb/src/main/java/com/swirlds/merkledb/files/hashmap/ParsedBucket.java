@@ -315,7 +315,6 @@ public final class ParsedBucket extends Bucket {
             this.keyBytes = keyBytes;
         }
 
-        /** Creates new bucket entry by reading its fields from the given protobuf buffer */
         public BucketEntry(PbjReader entryData) {
             // defaults
             int hashCode = 0;

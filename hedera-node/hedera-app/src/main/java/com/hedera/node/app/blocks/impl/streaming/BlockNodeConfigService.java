@@ -9,7 +9,6 @@ import com.hedera.node.config.data.BlockNodeConnectionConfig;
 import com.hedera.node.internal.network.BlockNodeConfig;
 import com.hedera.node.internal.network.BlockNodeConnectionInfo;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
@@ -183,7 +182,7 @@ public class BlockNodeConfigService {
             }
 
             final byte[] bytes = Files.readAllBytes(path);
-            connectionInfo = BlockNodeConnectionInfo.JSON.parse(Bytes.wrap(bytes));
+            connectionInfo = BlockNodeConnectionInfo.JSON.parse(bytes);
         } catch (final IOException | ParseException e) {
             logger.warn("Failed to read/parse block node configuration from {}", path, e);
             return;

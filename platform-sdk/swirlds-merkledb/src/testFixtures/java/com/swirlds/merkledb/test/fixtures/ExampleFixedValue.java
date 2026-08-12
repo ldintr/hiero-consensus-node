@@ -5,7 +5,6 @@ import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.PbjReader;
 import com.hedera.pbj.runtime.io.PbjWriter;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Random;
@@ -66,12 +65,6 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
         return Integer.BYTES + Integer.BYTES + data.length;
     }
 
-    public void writeTo(final WritableSequentialData out) {
-        out.writeInt(id);
-        out.writeInt(data.length);
-        out.writeBytes(data);
-    }
-
     public void writeTo(final PbjWriter out) {
         out.writeInt(id);
         out.writeInt(data.length);
@@ -88,18 +81,13 @@ public final class ExampleFixedValue extends ExampleByteArrayVirtualValue {
 
         @NonNull
         @Override
-        public ExampleFixedValue realParse(
+        public ExampleFixedValue parse(
                 @NonNull PbjReader in, boolean strictMode, boolean parseUnknownFields, int maxDepth, int maxSize) {
             return new ExampleFixedValue(in);
         }
 
         @Override
-        public void write(@NonNull ExampleFixedValue value, @NonNull WritableSequentialData out) {
-            value.writeTo(out);
-        }
-
-        @Override
-        public void realWrite(@NonNull ExampleFixedValue value, @NonNull PbjWriter out) {
+        public void write(@NonNull ExampleFixedValue value, @NonNull PbjWriter out) {
             value.writeTo(out);
         }
 

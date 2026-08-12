@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.hedera.hapi.node.base.Key;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.io.ByteArrayOutputStream;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,7 +61,7 @@ final class KeyProtoCodecTest {
         final var serializedKey = keyListNest(FIRST_KEY_LIST_LEVEL_REJECTED_BY_DEFAULT_DEPTH);
 
         assertThat(serializedKey.bytes()).hasSizeLessThanOrEqualTo(MAX_TRANSACTION_BYTES);
-        assertThatThrownBy(() -> Key.PROTOBUF.parse(Bytes.wrap(serializedKey.bytes())))
+        assertThatThrownBy(() -> Key.PROTOBUF.parse(serializedKey.bytes()))
                 .isInstanceOf(ParseException.class)
                 .hasMessageContaining("Reached maximum allowed depth");
     }

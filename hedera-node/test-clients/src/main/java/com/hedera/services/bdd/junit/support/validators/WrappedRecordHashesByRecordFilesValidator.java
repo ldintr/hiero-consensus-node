@@ -239,7 +239,7 @@ public class WrappedRecordHashesByRecordFilesValidator {
             if (allBytes.length == 0) {
                 return List.of();
             }
-            final var logMsg = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(Bytes.wrap(allBytes));
+            final var logMsg = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(allBytes);
             return List.copyOf(logMsg.entries());
         } catch (final ParseException e) {
             log.error("Failed parsing wrapped record hashes file {}", file, e);

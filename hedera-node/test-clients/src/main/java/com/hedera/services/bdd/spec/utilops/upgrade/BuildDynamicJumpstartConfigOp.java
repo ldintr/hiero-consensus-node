@@ -57,7 +57,7 @@ public class BuildDynamicJumpstartConfigOp extends UtilOp {
         final var node0 = nodes.getFirst();
         final var hashesFile = node0.getExternalPath(WRAPPED_RECORD_HASHES_FILE);
         final var allBytes = Files.readAllBytes(hashesFile);
-        final var hashesLog = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(Bytes.wrap(allBytes));
+        final var hashesLog = WrappedRecordFileBlockHashesLog.PROTOBUF.parse(allBytes);
         final var entries = hashesLog.entries();
         if (entries.size() < 2) {
             throw new IllegalStateException(

@@ -17,7 +17,6 @@ import com.hedera.pbj.runtime.UnknownFieldException;
 import com.hedera.pbj.runtime.io.PbjReader;
 import com.hedera.pbj.runtime.io.PbjWriter;
 import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.WritableSequentialData;
 import com.hedera.pbj.runtime.io.stream.EOFException;
 import com.hedera.pbj.runtime.io.stream.WritableStreamingData;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -72,7 +71,7 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
      * @return Parsed EntityIdGenerator model object or null if data input was null or empty
      * @throws ParseException If parsing fails
      */
-    public @NonNull EntityIdGenerator realParse(
+    public @NonNull EntityIdGenerator parse(
             @NonNull final PbjReader input,
             final boolean strictMode,
             final boolean parseUnknownFields,
@@ -178,21 +177,7 @@ public final class EntityIdGeneratorProtoCodec implements Codec<EntityIdGenerato
      * @param out The output stream to write to
      * @throws IOException If there is a problem writing
      */
-    public void write(@NonNull EntityIdGenerator data, @NonNull final WritableSequentialData out) throws IOException {
-        // [1] - nextId
-        writeLong(out, EntityIdGeneratorSchema.NEXT_ID, data.nextId(), true);
-
-        // Check if not-empty to avoid creating a lambda if there's nothing to write.
-        if (!data.getUnknownFields().isEmpty()) {
-            data.getUnknownFields().forEach(uf -> {
-                final int tag = (uf.field() << TAG_FIELD_OFFSET) | uf.wireType().ordinal();
-                out.writeVarInt(tag, false);
-                uf.bytes().writeTo(out);
-            });
-        }
-    }
-
-    public void realWrite(@NonNull EntityIdGenerator data, @NonNull final PbjWriter out) {
+    public void write(@NonNull EntityIdGenerator data, @NonNull final PbjWriter out) {
         // [1] - nextId
         writeLong(out, EntityIdGeneratorSchema.NEXT_ID, data.nextId(), true);
 
